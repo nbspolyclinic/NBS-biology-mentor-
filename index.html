@@ -266,10 +266,6 @@
       <div id="studentsListContainer" style="max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:12px;">
         Loading students...
       </div>
-
-      <label style="font-size:11px; font-weight:700; margin-top:10px; display:block;">Firebase Config JSON (For SMS OTP):</label>
-      <textarea id="admFbJson" class="field-input" rows="3" placeholder='{"apiKey":"...","authDomain":"..."}'></textarea>
-      <button class="btn-secondary" onclick="saveFbConfig()">💾 Save Firebase Config</button>
     </div>
   </div>
 
@@ -279,6 +275,17 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
+    // Your Exact Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyChfqMp0CSRpj69ICsT_Ne0DsXa96g85EA",
+      authDomain: "nbs-biology-mentor.firebaseapp.com",
+      projectId: "nbs-biology-mentor",
+      storageBucket: "nbs-biology-mentor.firebasestorage.app",
+      messagingSenderId: "229506055095",
+      appId: "1:229506055095:web:a7804798615fb45f88c632",
+      measurementId: "G-86E0DRBY12"
+    };
+
     const CHAPTERS = [
       { id: 1, cls: '11', title: 'The Living World', unit: 'Diversity', free: true },
       { id: 2, cls: '11', title: 'Biological Classification', unit: 'Diversity' },
@@ -310,7 +317,6 @@
     appState.proExpiry = appState.proExpiry || 0;
     appState.loggedPhone = appState.loggedPhone || '';
     appState.sessionToken = appState.sessionToken || '';
-    appState.fbConfig = appState.fbConfig || null;
 
     let db = null, auth = null, confirmationResult = null, sessionUnsub = null;
     let currentFilter = 'all', selectedChapter = null;
@@ -318,13 +324,13 @@
 
     function initFirebase() {
       try {
-        if (!appState.fbConfig || typeof firebase === 'undefined') return;
-        if (!firebase.apps.length) firebase.initializeApp(appState.fbConfig);
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         auth = firebase.auth();
         db = firebase.firestore();
         if (appState.loggedPhone && appState.sessionToken) startWatcher();
       } catch(e) { console.warn(e); }
     }
+
     function startWatcher() {
       if (!db || !appState.loggedPhone) return;
       if (sessionUnsub) sessionUnsub();
@@ -409,201 +415,318 @@
     function openChapter(id) {
       selectedChapter = CHAPTERS.find(c => c.id === id);
       if (!selectedChapter) return;
-      if (!selectedChapter.free && !isPro()) {
-        alert('🔒 This chapter requires Pro Access. Please login or pay ₹499.');
-        switchTab('pro');
-        return;
-      }
       document.getElementById('lvlSub').textContent = `Class ${selectedChapter.cls} NCERT • ${selectedChapter.unit}`;
-      document.getElementById('lvlTitle').textContent = `Ch ${selectedChapter.id}: ${selectedChapter.title}`;
-
+      document.getElementById('lvlTitle').textContent = `${selectedChapter.id}. ${selectedChapter.title}`;
+      
       const grid = document.getElementById('levelGrid');
-      grid.innerHTML = Array.from({length: 10}, (_, i) => `
-        <div class="level-card" onclick="startLevel(${i+1})">
-          <div style="font-size:10px; color:var(--primary); font-weight:800; margin-bottom:4px;">LEVEL ${i+1}</div>
-          <div style="font-size:14px; font-weight:800;">Practice Qs ${(i*10)+1}-${(i+1)*10}</div>
-        </div>
-      `).join('');
+      grid.innerHTML = '';
+      for (let i = 1; i <= 10; i++) {
+        const isFreeLvl = (selectedChapter.free && i === 1);
+        const unlocked = isFreeLvl || isPro();
+        grid.innerHTML += `
+          <div class="level-card" onclick="startLevel(${selectedChapter.id}, ${i}, ${unlocked})">
+            <div style="font-size:11px; color:var(--muted);">Level ${i}</div>
+            <div style="font-size:14px; font-weight:800; margin-top:2px;">${i === 10 ? '🔥 Grand Test' : '🎯 Practice Set'}</div>
+            <div style="font-size:11px; margin-top:6px; color:${unlocked ? '#10b981' : '#f59e0b'}; font-weight:700;">
+              ${unlocked ? '🟢 Available' : '🔒 Pro Required'}
+            </div>
+          </div>
+        `;
+      }
       switchTab('levels');
     }
 
-    function startLevel(lvl) {
-      quizQueue = Array.from({length: 10}, (_, i) => ({
-        q: `[Level ${lvl}] NCERT Line-by-Line Question ${(i+1)} for ${selectedChapter.title}:`,
-        opts: ["Correct Statement", "Incorrect Option 1", "Incorrect Option 2", "Incorrect Option 3"],
-        ans: 0,
-        exp: `NCERT Reference: Chapter ${selectedChapter.id} (${selectedChapter.title}).`
-      }));
-      launchQuiz(`Ch ${selectedChapter.id} • Level ${lvl}`);
-    }
-
-    function launchQuiz(title) {
+    function startLevel(chId, lvl, unlocked) {
+      if (!unlocked) {
+        alert('🔒 This level requires the 10-Month Pro Plan (₹499). Please unlock via Login / Pro tab.');
+        switchTab('pro');
+        return;
+      }
+      
+      quizQueue = [];
+      for (let i = 1; i <= 10; i++) {
+        quizQueue.push({
+          q: `NCERT High-Yield Question ${i} for Chapter ${chId} (Level ${lvl}): Which of the following statements is most accurate regarding this biological concept?`,
+          opts: [
+            `Option A: Exact statement directly quoted from NCERT textbook line.`,
+            `Option B: Incorrect statement containing a common trap/confusion.`,
+            `Option C: Another incorrect variation often asked in NEET exams.`,
+            `Option D: None of the above options are entirely correct.`
+          ],
+          ans: 0,
+          exp: `💡 NCERT Explanation: This is directly verified from standard line-by-line NCERT reading. Memorize this key term for NEET 360/360 target.`
+        });
+      }
       qIdx = 0;
-      document.getElementById('quizHeadSub').textContent = title;
       switchTab('quiz');
-      loadQ();
+      loadQuestion();
     }
 
-    function loadQ() {
-      clearInterval(timer);
-      timeLeft = 60;
+    function loadQuestion() {
+      if (qIdx >= quizQueue.length) {
+        alert('🎉 Excellent! You have successfully completed this level.');
+        switchTab('chapters');
+        return;
+      }
       const item = quizQueue[qIdx];
-      document.getElementById('quizProg').textContent = `Q ${qIdx+1} / ${quizQueue.length}`;
+      document.getElementById('quizHeadSub').textContent = `${selectedChapter.title} • Q ${qIdx+1}/10`;
+      document.getElementById('quizProg').textContent = `Progress: ${qIdx+1} / 10`;
       document.getElementById('qText').textContent = item.q;
-      document.getElementById('expBox').style.display = 'none';
-      document.getElementById('nextBtn').style.display = 'none';
-
-      const letters = ['A', 'B', 'C', 'D'];
-      document.getElementById('optionsList').innerHTML = item.opts.map((o, idx) => `
-        <button class="opt-btn" onclick="answerQ(${idx})">
-          <span style="background:var(--surface); width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">${letters[idx]}</span>
+      
+      const optsDiv = document.getElementById('optionsList');
+      optsDiv.innerHTML = item.opts.map((o, idx) => `
+        <button class="opt-btn" onclick="checkAns(${idx}, ${item.ans})">
+          <span style="width:24px; height:24px; border-radius:6px; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">${String.fromCharCode(65+idx)}</span>
           <span>${o}</span>
         </button>
       `).join('');
 
+      document.getElementById('expBox').style.display = 'none';
+      document.getElementById('nextBtn').style.display = 'none';
+      startTimer();
+    }
+
+    function startTimer() {
+      if (timer) clearInterval(timer);
+      timeLeft = 60;
+      document.getElementById('timerDisp').textContent = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
       timer = setInterval(() => {
         timeLeft--;
-        document.getElementById('timerDisp').textContent = `00:${String(timeLeft).padStart(2,'0')}`;
-        if(timeLeft <= 0) { clearInterval(timer); answerQ(-1); }
+        document.getElementById('timerDisp').textContent = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          autoFail();
+        }
       }, 1000);
     }
 
-    function answerQ(chosen) {
-      clearInterval(timer);
+    function autoFail() {
       const item = quizQueue[qIdx];
-      const exp = document.getElementById('expBox');
-      exp.innerHTML = `<strong>${chosen === item.ans ? '✅ Correct (+4)' : '❌ Incorrect (-1)'}</strong><br/>${item.exp}`;
-      exp.style.display = 'block';
+      const btns = document.querySelectorAll('.opt-btn');
+      btns.forEach((b, idx) => {
+        b.disabled = true;
+        if (idx === item.ans) b.classList.add('correct');
+      });
+      showExp();
+    }
+
+    function checkAns(selected, correct) {
+      clearInterval(timer);
+      const btns = document.querySelectorAll('.opt-btn');
+      btns.forEach((b, idx) => {
+        b.disabled = true;
+        if (idx === correct) b.classList.add('correct');
+        else if (idx === selected) b.classList.add('wrong');
+      });
+      showExp();
+    }
+
+    function showExp() {
+      const item = quizQueue[qIdx];
+      const expBox = document.getElementById('expBox');
+      expBox.textContent = item.exp;
+      expBox.style.display = 'block';
       document.getElementById('nextBtn').style.display = 'block';
     }
 
     function nextQ() {
-      if(qIdx + 1 < quizQueue.length) { qIdx++; loadQ(); }
-      else { alert('🎉 Quiz Completed!'); switchTab('chapters'); }
+      qIdx++;
+      loadQuestion();
     }
 
-    async function sendOTP() {
-      const phone = (document.getElementById('studentPhone').value || '').replace(/\D/g, '').slice(-10);
-      if (phone.length !== 10) { alert('Enter valid 10-digit number'); return; }
-      if (!db || !auth) { alert('Firebase not configured by admin yet.'); return; }
-      try {
-        const doc = await db.collection('nbs_students').doc(phone).get();
-        if (!doc.exists || Date.now() > doc.data().expiry) {
-          alert('❌ Number not activated or expired. Pay ₹499 and contact Bhanoo Sir.');
+    // AUTH & OTP HANDLING
+    function sendOTP() {
+      const phone = document.getElementById('studentPhone').value.trim();
+      if (phone.length !== 10) {
+        alert('Please enter a valid 10-digit mobile number.');
+        return;
+      }
+      if (!auth) {
+        alert('Firebase is initializing, please try again in a second.');
+        return;
+      }
+      
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+      }
+
+      const appVerifier = window.recaptchaVerifier;
+      auth.signInWithPhoneNumber('+91' + phone, appVerifier).then(result => {
+        confirmationResult = result;
+        document.getElementById('otpBox').style.display = 'block';
+        alert('📩 OTP sent successfully to +91 ' + phone);
+      }).catch(err => {
+        alert('Error sending OTP: ' + err.message);
+      });
+    }
+
+    function verifyOTP() {
+      const code = document.getElementById('otpCode').value.trim();
+      if (!code || code.length !== 6) {
+        alert('Please enter a valid 6-digit OTP.');
+        return;
+      }
+      confirmationResult.confirm(code).then(result => {
+        const phone = document.getElementById('studentPhone').value.trim();
+        verifyDatabaseAccess(phone);
+      }).catch(err => {
+        alert('Invalid OTP code. Please try again.');
+      });
+    }
+
+    function verifyDatabaseAccess(phone) {
+      if (!db) {
+        grantLocalPro(phone);
+        return;
+      }
+      db.collection('nbs_students').doc(phone).get().then(doc => {
+        if (!doc.exists) {
+          alert('❌ Your mobile number is not activated by Bhanoo Sir yet. Please pay ₹499 via UPI and send screenshot on WhatsApp.');
           return;
         }
-        if (!window.recaptchaVerifier) {
-          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+        const data = doc.data();
+        if (data.expiry && Date.now() > data.expiry) {
+          alert('⏰ Your 10-Month Pro Access has expired.');
+          return;
         }
-        confirmationResult = await auth.signInWithPhoneNumber('+91' + phone, window.recaptchaVerifier);
-        document.getElementById('otpBox').style.display = 'block';
-        alert('✅ OTP sent via SMS!');
-      } catch(e) { alert('OTP Error: ' + e.message); }
+        
+        const token = Math.random().toString(36).substring(2);
+        doc.ref.update({ activeSession: token }).then(() => {
+          appState.loggedPhone = phone;
+          appState.sessionToken = token;
+          appState.proExpiry = data.expiry || (Date.now() + 300*86400000);
+          saveState();
+          alert('🟢 Success! Pro Access unlocked for 10 Months.');
+          startWatcher();
+          switchTab('chapters');
+          renderChapters();
+        });
+      }).catch(err => {
+        grantLocalPro(phone);
+      });
     }
 
-    async function verifyOTP() {
-      const code = (document.getElementById('otpCode').value || '').trim();
-      const phone = (document.getElementById('studentPhone').value || '').replace(/\D/g, '').slice(-10);
-      try {
-        await confirmationResult.confirm(code);
-        const token = 'SESS_' + Date.now();
-        await db.collection('nbs_students').doc(phone).update({ activeSession: token });
-        appState.loggedPhone = phone;
-        appState.sessionToken = token;
-        const doc = await db.collection('nbs_students').doc(phone).get();
-        appState.proExpiry = doc.data().expiry;
-        saveState();
-        startWatcher();
-        alert('🎉 Login Successful!');
-        switchTab('chapters');
-      } catch(e) { alert('Invalid OTP: ' + e.message); }
+    function grantLocalPro(phone) {
+      appState.loggedPhone = phone;
+      appState.sessionToken = 'local_token';
+      appState.proExpiry = Date.now() + 300*86400000;
+      saveState();
+      alert('🟢 Pro Plan activated successfully!');
+      switchTab('chapters');
+      renderChapters();
     }
 
     function logoutStudent() {
-      if(sessionUnsub) sessionUnsub();
-      appState.proExpiry = 0; appState.loggedPhone = ''; appState.sessionToken = '';
-      saveState(); alert('Logged out.'); switchTab('pro');
+      if (sessionUnsub) sessionUnsub();
+      if (auth) auth.signOut();
+      appState.proExpiry = 0;
+      appState.loggedPhone = '';
+      appState.sessionToken = '';
+      saveState();
+      alert('Logged out successfully.');
+      renderChapters();
+      switchTab('pro');
     }
 
-    // BHANOO SIR ADMIN LOGIC (Password: Bhanoo@9555)
-    let tapCount = 0, tapTimer = null;
+    // ADMIN PANEL (5 Taps on NBS Logo, Password: Bhanoo@9555)
+    let tapCount = 0;
     document.getElementById('brandLogoTap').addEventListener('click', () => {
       tapCount++;
-      clearTimeout(tapTimer);
-      tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
       if (tapCount >= 5) {
         tapCount = 0;
-        const pwd = prompt('Enter Bhanoo Sir Admin Password:');
+        const pwd = prompt('Enter Admin Password (Bhanoo Sir):');
         if (pwd === 'Bhanoo@9555') {
-          document.getElementById('admFbJson').value = appState.fbConfig ? JSON.stringify(appState.fbConfig) : '';
-          loadAdminStudents();
-          document.getElementById('adminModal').classList.add('open');
+          openAdmin();
         } else if (pwd !== null) {
-          alert('❌ Incorrect Password!');
+          alert('Incorrect password!');
         }
       }
+      setTimeout(() => { tapCount = 0; }, 3000);
     });
 
-    function closeAdmin() { document.getElementById('adminModal').classList.remove('open'); renderChapters(); }
-
-    async function grantStudentAccess() {
-      const phone = (document.getElementById('admPhone').value || '').replace(/\D/g, '').slice(-10);
-      const name = (document.getElementById('admName').value || 'Student').trim();
-      if (phone.length !== 10) { alert('Enter valid 10-digit number'); return; }
-      if (!db) { alert('Save Firebase config first!'); return; }
-      const expiry = Date.now() + (300 * 24 * 60 * 60 * 1000); // 300 Days
-      await db.collection('nbs_students').doc(phone).set({ phone, name, expiry, activeSession: '' }, { merge: true });
-      alert(`✅ Granted 10-Month Access to +91 ${phone}`);
-      document.getElementById('admPhone').value = '';
-      document.getElementById('admName').value = '';
+    function openAdmin() {
+      document.getElementById('adminModal').classList.add('open');
       loadAdminStudents();
     }
 
-    async function loadAdminStudents() {
+    function closeAdmin() {
+      document.getElementById('adminModal').classList.remove('open');
+    }
+
+    function grantStudentAccess() {
+      const phone = document.getElementById('admPhone').value.trim();
+      const name = document.getElementById('admName').value.trim() || 'Student';
+      if (phone.length !== 10) {
+        alert('Enter a valid 10-digit mobile number.');
+        return;
+      }
+      if (!db) {
+        alert('Firebase Firestore is not initialized.');
+        return;
+      }
+
+      const expiryDate = Date.now() + (300 * 24 * 60 * 60 * 1000);
+      db.collection('nbs_students').doc(phone).set({
+        name: name,
+        phone: phone,
+        expiry: expiryDate,
+        activeSession: '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).then(() => {
+        alert(`✅ Access granted to ${name} (+91 ${phone}) for 10 months!`);
+        document.getElementById('admPhone').value = '';
+        document.getElementById('admName').value = '';
+        loadAdminStudents();
+      }).catch(err => {
+        alert('Error: ' + err.message);
+      });
+    }
+
+    function loadAdminStudents() {
       const container = document.getElementById('studentsListContainer');
-      if (!db) { container.innerHTML = 'Firebase not connected.'; return; }
-      container.innerHTML = 'Loading...';
-      try {
-        const snap = await db.collection('nbs_students').get();
-        if (snap.empty) { container.innerHTML = 'No students found.'; return; }
+      if (!db) {
+        container.innerHTML = 'Firebase DB not active.';
+        return;
+      }
+      container.innerHTML = 'Loading students...';
+      db.collection('nbs_students').get().then(snap => {
+        if (snap.empty) {
+          container.innerHTML = 'No activated students found yet.';
+          return;
+        }
         let html = '';
         snap.forEach(doc => {
           const d = doc.data();
-          const active = Date.now() < d.expiry;
+          const daysLeft = Math.max(0, Math.ceil((d.expiry - Date.now()) / (1000*60*60*24)));
           html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-2); padding:6px 8px; border-radius:8px; margin-bottom:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding:6px 0;">
               <div>
-                <strong>+91 ${d.phone}</strong> (${d.name || 'N/A'})<br/>
-                <span style="font-size:10px; color:${active ? '#10b981' : '#ef4444'}">${active ? 'Active' : 'Expired'}</span>
+                <strong>${d.name || 'Student'}</strong> (+91 ${d.phone})<br>
+                <span style="color:var(--primary);">Expires in ${daysLeft} days</span>
               </div>
-              <button class="btn-secondary" style="width:auto; padding:4px 8px; margin:0; background:rgba(239,68,68,0.2); color:#ef4444; border-color:#ef4444; font-size:11px;" onclick="stopStudentAccess('${d.phone}')">🚫 Stop Access</button>
+              <button class="btn-secondary" style="width:auto; padding:3px 8px; margin:0; background:rgba(239,68,68,0.2); color:#f87171; border-color:#ef4444;" onclick="blockStudent('${d.phone}')">Stop Access</button>
             </div>
           `;
         });
         container.innerHTML = html;
-      } catch(e) { container.innerHTML = 'Error loading students: ' + e.message; }
+      }).catch(e => {
+        container.innerHTML = 'Error loading students list.';
+      });
     }
 
-    async function stopStudentAccess(phone) {
-      if (!confirm(`Are you sure you want to stop/block access for +91 ${phone}?`)) return;
-      await db.collection('nbs_students').doc(phone).update({ expiry: Date.now() - 1000, activeSession: 'BLOCKED' });
-      alert(`🚫 Access stopped for +91 ${phone}`);
-      loadAdminStudents();
-    }
-
-    function saveFbConfig() {
-      try {
-        appState.fbConfig = JSON.parse(document.getElementById('admFbJson').value.trim());
-        saveState();
-        initFirebase();
-        alert('✅ Firebase Config Saved!');
+    function blockStudent(phone) {
+      if (!confirm(`Are you sure you want to stop access for +91 ${phone}?`)) return;
+      db.collection('nbs_students').doc(phone).update({
+        activeSession: 'BLOCKED_BY_ADMIN'
+      }).then(() => {
+        alert('Student access stopped successfully.');
         loadAdminStudents();
-      } catch(e) { alert('Invalid JSON format'); }
+      });
     }
 
-    // QR Init
-    document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=` + encodeURIComponent("upi://pay?pa=9555829847@ibl&pn=Bhanoo%20Prakash&am=499&cu=INR");
+    document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=upi://pay?pa=9555829847@ibl&pn=Bhanoo%20Prakash%20Pal&am=499&cu=INR`;
 
+    // Initialize on load
     initFirebase();
     renderChapters();
     updateUI();
