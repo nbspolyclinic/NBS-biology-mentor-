@@ -36,7 +36,7 @@
       padding: 12px 16px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
     .brand-badge {
       width: 38px; height: 38px; border-radius: 10px;
       background: linear-gradient(135deg, #10b981, #059669);
@@ -121,12 +121,29 @@
       cursor: pointer; margin-bottom: 10px;
     }
 
+    /* Modal / Admin */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.85);
+      z-index: 100; display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 20px; width: 100%; max-width: 440px;
+      max-height: 85vh; overflow-y: auto;
+    }
+    .field-input {
+      width: 100%; padding: 11px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); font-size: 13px; margin-top: 6px; margin-bottom: 10px;
+    }
+
     /* Bottom Nav */
     .bottom-nav {
       position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
       width: 100%; max-width: 540px; z-index: 50;
       background: var(--surface); border-top: 1px solid var(--border);
-      display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 4px;
+      display: grid; grid-template-columns: repeat(3, 1fr); padding: 8px 4px;
     }
     .nav-item {
       background: none; border: none; color: var(--muted);
@@ -139,14 +156,14 @@
 <body>
   <div class="app-container">
     <header class="top-bar">
-      <div class="brand" onclick="switchTab('chapters')">
+      <div class="brand" id="brandLogoTap">
         <div class="brand-badge">NBS</div>
         <div>
           <div class="brand-title">NBS Biology Mentor</div>
           <div class="brand-sub">🟢 NEET 2026 Ready</div>
         </div>
       </div>
-      <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:11px; margin:0;" onclick="switchTab('pro')">👑 PRO</button>
+      <button class="btn-primary" style="width:auto; padding:6px 12px; font-size:11px; margin:0;" onclick="switchTab('pro')">👑 PRO / Login</button>
     </header>
 
     <!-- CHAPTERS SCREEN -->
@@ -194,37 +211,72 @@
       </div>
     </section>
 
-    <!-- MOCK TEST SCREEN -->
-    <section id="screen-mock" class="section">
-      <div class="hero-card">
-        <span class="hero-tag">🏆 NTA Mock Pattern</span>
-        <h1>Full Syllabus Grand Test</h1>
-        <p>Test your speed with 60 seconds per question.</p>
-        <button class="btn-primary" onclick="startMock()">⚡ Start 15-Q Free Demo Mock</button>
-      </div>
-    </section>
-
     <!-- PRO / LOGIN SCREEN -->
     <section id="screen-pro" class="section">
       <div class="hero-card">
-        <span class="hero-tag">👑 10-Month Access</span>
-        <h1>NBS Pro Activation</h1>
-        <p>Unlock all 32 Chapters & Unlimited Grand Mocks for ₹499.</p>
+        <span class="hero-tag">🔒 Single-Device Pro Plan</span>
+        <h1 id="loginHeadline">Student Login (OTP)</h1>
+        <p>Enter your 10-digit mobile number activated by Bhanoo Sir.</p>
       </div>
-      <div class="q-card" style="text-align:center;">
-        <img id="qrCodeImg" style="width:180px; height:180px; background:#fff; padding:8px; border-radius:10px; margin:10px auto;" />
+
+      <div class="q-card">
+        <input type="tel" id="studentPhone" class="field-input" maxlength="10" placeholder="Enter 10-digit Mobile Number" />
+        <div id="recaptcha-container"></div>
+        <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()">📩 Send SMS OTP</button>
+
+        <div id="otpBox" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+          <input type="number" id="otpCode" class="field-input" placeholder="Enter 6-digit OTP" />
+          <button class="btn-primary" onclick="verifyOTP()">✅ Verify & Unlock App</button>
+        </div>
+        <button class="btn-secondary" id="logoutBtn" style="display:none; margin-top:10px; background:rgba(239,68,68,0.2); border-color:#ef4444; color:#f87171;" onclick="logoutStudent()">🚪 Logout</button>
+      </div>
+
+      <div class="q-card" style="margin-top:14px; text-align:center;">
+        <h3 style="font-size:15px; font-weight:800;">Pay ₹499 for 10-Month Pro Access</h3>
+        <img id="qrImg" style="width:170px; height:170px; background:#fff; padding:6px; border-radius:10px; margin:10px auto;" />
         <div style="font-size:12px; font-weight:700; color:var(--primary);">UPI: 9555829847@ibl • ₹499</div>
-        <button class="btn-primary" style="margin-top:12px;" onclick="window.open('https://wa.me/919555829847?text=Hello%20NBS,%20I%20paid%20₹499%20for%20Pro%20Plan')">📲 Send Screenshot on WhatsApp</button>
+        <button class="btn-primary" style="margin-top:10px;" onclick="window.open('https://wa.me/919555829847?text=Hello%20Bhanoo%20Sir,%20I%20paid%20₹499%20for%20NBS%20Biology%20Pro%20Plan.')">📲 Send Screenshot on WhatsApp</button>
       </div>
     </section>
 
     <!-- BOTTOM NAV -->
     <nav class="bottom-nav">
       <button class="nav-item active" id="nav-chapters" onclick="switchTab('chapters')">📚<span>Chapters</span></button>
-      <button class="nav-item" id="nav-mock" onclick="switchTab('mock')">⏱️<span>Mock Test</span></button>
-      <button class="nav-item" id="nav-pro" onclick="switchTab('pro')">👑<span>Pro Plan</span></button>
+      <button class="nav-item" id="nav-mock" onclick="switchTab('chapters')">⏱️<span>Grand Mock</span></button>
+      <button class="nav-item" id="nav-pro" onclick="switchTab('pro')">👑<span>Login / Pro</span></button>
     </nav>
   </div>
+
+  <!-- BHANOO SIR ADMIN MODAL (5 Taps on NBS Logo, Password: Bhanoo@9555) -->
+  <div class="modal-backdrop" id="adminModal">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="font-size:16px; font-weight:800; color:#10b981;">🛡️ Bhanoo Sir Admin Panel</h3>
+        <button class="btn-secondary" style="width:auto; padding:4px 10px; margin:0;" onclick="closeAdmin()">✕</button>
+      </div>
+
+      <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:12px; border-radius:14px; margin-bottom:12px;">
+        <h4 style="font-size:13px; font-weight:800; color:#10b981; margin-bottom:6px;">⚡ Give Access (300 Days Pro)</h4>
+        <input type="tel" id="admPhone" class="field-input" maxlength="10" placeholder="Student 10-digit Mobile No." />
+        <input type="text" id="admName" class="field-input" placeholder="Student Name" />
+        <button class="btn-primary" style="margin-top:2px;" onclick="grantStudentAccess()">✅ Grant Access (Activate)</button>
+      </div>
+
+      <h4 style="font-size:13px; font-weight:800; margin-bottom:6px;">📋 Activated Students (Stop/Block Access)</h4>
+      <div id="studentsListContainer" style="max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:12px;">
+        Loading students...
+      </div>
+
+      <label style="font-size:11px; font-weight:700; margin-top:10px; display:block;">Firebase Config JSON (For SMS OTP):</label>
+      <textarea id="admFbJson" class="field-input" rows="3" placeholder='{"apiKey":"...","authDomain":"..."}'></textarea>
+      <button class="btn-secondary" onclick="saveFbConfig()">💾 Save Firebase Config</button>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
     const CHAPTERS = [
@@ -239,37 +291,88 @@
       { id: 9, cls: '11', title: 'Biomolecules', unit: 'Cell' },
       { id: 10, cls: '11', title: 'Cell Cycle and Cell Division', unit: 'Cell' },
       { id: 11, cls: '11', title: 'Photosynthesis in Higher Plants', unit: 'Plant Physiology' },
-      { id: 12, cls: '11', title: 'Respiration in Plants', unit: 'Plant Physiology' },
-      { id: 13, cls: '11', title: 'Plant Growth and Development', unit: 'Plant Physiology' },
-      { id: 14, cls: '11', title: 'Breathing and Exchange of Gases', unit: 'Human Physiology' },
-      { id: 15, cls: '11', title: 'Body Fluids and Circulation', unit: 'Human Physiology' },
-      { id: 16, cls: '11', title: 'Excretory Products & Elimination', unit: 'Human Physiology' },
-      { id: 17, cls: '11', title: 'Locomotion and Movement', unit: 'Human Physiology' },
-      { id: 18, cls: '11', title: 'Neural Control and Coordination', unit: 'Human Physiology' },
-      { id: 19, cls: '11', title: 'Chemical Coordination & Integration', unit: 'Human Physiology' },
-      { id: 20, cls: '12', title: 'Sexual Reproduction in Flowering Plants', unit: 'Reproduction' },
-      { id: 21, cls: '12', title: 'Human Reproduction', unit: 'Reproduction' },
-      { id: 22, cls: '12', title: 'Reproductive Health', unit: 'Reproduction' },
-      { id: 23, cls: '12', title: 'Principles of Inheritance & Variation', unit: 'Genetics' },
-      { id: 24, cls: '12', title: 'Molecular Basis of Inheritance', unit: 'Genetics' },
-      { id: 25, cls: '12', title: 'Evolution', unit: 'Genetics' },
-      { id: 26, cls: '12', title: 'Human Health and Disease', unit: 'Welfare' },
-      { id: 27, cls: '12', title: 'Microbes in Human Welfare', unit: 'Welfare' },
-      { id: 28, cls: '12', title: 'Biotechnology: Principles & Processes', unit: 'Biotechnology' },
-      { id: 29, cls: '12', title: 'Biotechnology and its Applications', unit: 'Biotechnology' },
-      { id: 30, cls: '12', title: 'Organisms and Populations', unit: 'Ecology' },
-      { id: 31, cls: '12', title: 'Ecosystem', unit: 'Ecology' },
-      { id: 32, cls: '12', title: 'Biodiversity and Conservation', unit: 'Ecology' }
+      { id: 12, cls: '12', title: 'Sexual Reproduction in Flowering Plants', unit: 'Reproduction' },
+      { id: 13, cls: '12', title: 'Human Reproduction', unit: 'Reproduction' },
+      { id: 14, cls: '12', title: 'Reproductive Health', unit: 'Reproduction' },
+      { id: 15, cls: '12', title: 'Principles of Inheritance & Variation', unit: 'Genetics' },
+      { id: 16, cls: '12', title: 'Molecular Basis of Inheritance', unit: 'Genetics' },
+      { id: 17, cls: '12', title: 'Evolution', unit: 'Genetics' },
+      { id: 18, cls: '12', title: 'Human Health and Disease', unit: 'Welfare' },
+      { id: 19, cls: '12', title: 'Microbes in Human Welfare', unit: 'Welfare' },
+      { id: 20, cls: '12', title: 'Biotechnology: Principles & Processes', unit: 'Biotechnology' },
+      { id: 21, cls: '12', title: 'Biotechnology and its Applications', unit: 'Biotechnology' },
+      { id: 22, cls: '12', title: 'Organisms and Populations', unit: 'Ecology' },
+      { id: 23, cls: '12', title: 'Ecosystem', unit: 'Ecology' },
+      { id: 24, cls: '12', title: 'Biodiversity and Conservation', unit: 'Ecology' }
     ];
 
-    let currentFilter = 'all';
-    let selectedChapter = null;
+    let appState = JSON.parse(localStorage.getItem('nbs_bio_state') || '{}');
+    appState.proExpiry = appState.proExpiry || 0;
+    appState.loggedPhone = appState.loggedPhone || '';
+    appState.sessionToken = appState.sessionToken || '';
+    appState.fbConfig = appState.fbConfig || null;
+
+    let db = null, auth = null, confirmationResult = null, sessionUnsub = null;
+    let currentFilter = 'all', selectedChapter = null;
     let quizQueue = [], qIdx = 0, timer = null, timeLeft = 60;
+
+    function initFirebase() {
+      try {
+        if (!appState.fbConfig || typeof firebase === 'undefined') return;
+        if (!firebase.apps.length) firebase.initializeApp(appState.fbConfig);
+        auth = firebase.auth();
+        db = firebase.firestore();
+        if (appState.loggedPhone && appState.sessionToken) startWatcher();
+      } catch(e) { console.warn(e); }
+    }
+    function startWatcher() {
+      if (!db || !appState.loggedPhone) return;
+      if (sessionUnsub) sessionUnsub();
+      sessionUnsub = db.collection('nbs_students').doc(appState.loggedPhone).onSnapshot(doc => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        if (data.activeSession && data.activeSession !== appState.sessionToken) {
+          forceLogout('⚠️ Access stopped or logged in on another device.');
+        } else if (data.expiry && Date.now() > data.expiry) {
+          forceLogout('⏰ Your 10-Month Pro Access has expired.');
+        }
+      });
+    }
+
+    function forceLogout(msg) {
+      if (sessionUnsub) sessionUnsub();
+      appState.proExpiry = 0;
+      appState.loggedPhone = '';
+      appState.sessionToken = '';
+      saveState();
+      alert(msg);
+      switchTab('pro');
+    }
+
+    function saveState() {
+      localStorage.setItem('nbs_bio_state', JSON.stringify(appState));
+      updateUI();
+    }
+
+    function isPro() {
+      return appState.proExpiry && Date.now() < appState.proExpiry;
+    }
+
+    function updateUI() {
+      const loginHead = document.getElementById('loginHeadline');
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (isPro()) {
+        loginHead.textContent = `🟢 Logged in (+91 ${appState.loggedPhone})`;
+        logoutBtn.style.display = 'block';
+      } else {
+        loginHead.textContent = 'Student Login (OTP)';
+        logoutBtn.style.display = 'none';
+      }
+    }
 
     function switchTab(tab) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      
       const target = document.getElementById('screen-' + tab);
       if (target) target.classList.add('active');
       const nav = document.getElementById('nav-' + tab);
@@ -281,7 +384,7 @@
       currentFilter = cls;
       ['all', '11', '12'].forEach(c => {
         const el = document.getElementById('tab-' + c);
-        if (el) el.classList.toggle('active', c === cls);
+        if(el) el.classList.toggle('active', c === cls);
       });
       renderChapters();
     }
@@ -289,7 +392,6 @@
     function renderChapters() {
       const list = document.getElementById('chapterList');
       const filtered = CHAPTERS.filter(c => currentFilter === 'all' || c.cls === currentFilter);
-      
       list.innerHTML = filtered.map(c => `
         <div class="chapter-card" onclick="openChapter(${c.id})">
           <div class="ch-left">
@@ -299,7 +401,7 @@
               <div class="ch-meta">Class ${c.cls} • 100 NCERT Qs</div>
             </div>
           </div>
-          <span class="${c.free ? 'badge-free' : 'badge-lock'}">${c.free ? 'FREE' : 'PRO'}</span>
+          <span class="${(c.free || isPro()) ? 'badge-free' : 'badge-lock'}">${(c.free || isPro()) ? 'UNLOCKED' : 'PRO'}</span>
         </div>
       `).join('');
     }
@@ -307,7 +409,11 @@
     function openChapter(id) {
       selectedChapter = CHAPTERS.find(c => c.id === id);
       if (!selectedChapter) return;
-      
+      if (!selectedChapter.free && !isPro()) {
+        alert('🔒 This chapter requires Pro Access. Please login or pay ₹499.');
+        switchTab('pro');
+        return;
+      }
       document.getElementById('lvlSub').textContent = `Class ${selectedChapter.cls} NCERT • ${selectedChapter.unit}`;
       document.getElementById('lvlTitle').textContent = `Ch ${selectedChapter.id}: ${selectedChapter.title}`;
 
@@ -316,36 +422,19 @@
         <div class="level-card" onclick="startLevel(${i+1})">
           <div style="font-size:10px; color:var(--primary); font-weight:800; margin-bottom:4px;">LEVEL ${i+1}</div>
           <div style="font-size:14px; font-weight:800;">Practice Qs ${(i*10)+1}-${(i+1)*10}</div>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">60s per Question</div>
         </div>
       `).join('');
-
       switchTab('levels');
     }
 
     function startLevel(lvl) {
       quizQueue = Array.from({length: 10}, (_, i) => ({
-        q: `[Level ${lvl}] Sample NCERT Line-by-Line Question ${(i+1)} for ${selectedChapter.title}: Which of the following statements is correct regarding this topic?`,
-        opts: [
-          `Option A: Primary statement true as per NCERT`,
-          `Option B: Incorrect statement for distraction`,
-          `Option C: Another incorrect statement`,
-          `Option D: None of the above`
-        ],
+        q: `[Level ${lvl}] NCERT Line-by-Line Question ${(i+1)} for ${selectedChapter.title}:`,
+        opts: ["Correct Statement", "Incorrect Option 1", "Incorrect Option 2", "Incorrect Option 3"],
         ans: 0,
-        exp: `NCERT Reference: Direct line from Chapter ${selectedChapter.id} (${selectedChapter.title}).`
+        exp: `NCERT Reference: Chapter ${selectedChapter.id} (${selectedChapter.title}).`
       }));
       launchQuiz(`Ch ${selectedChapter.id} • Level ${lvl}`);
-    }
-
-    function startMock() {
-      quizQueue = Array.from({length: 15}, (_, i) => ({
-        q: `[NEET Mock Q${i+1}] High-yield conceptual question from full biology syllabus.`,
-        opts: ["Correct Statement", "Wrong Statement 1", "Wrong Statement 2", "Wrong Statement 3"],
-        ans: 0,
-        exp: "Detailed NTA pattern explanation."
-      }));
-      launchQuiz('FREE Demo Mock (15 Qs)');
     }
 
     function launchQuiz(title) {
@@ -366,7 +455,7 @@
 
       const letters = ['A', 'B', 'C', 'D'];
       document.getElementById('optionsList').innerHTML = item.opts.map((o, idx) => `
-        <button class="opt-btn" id="opt-${idx}" onclick="answerQ(${idx})">
+        <button class="opt-btn" onclick="answerQ(${idx})">
           <span style="background:var(--surface); width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">${letters[idx]}</span>
           <span>${o}</span>
         </button>
@@ -382,11 +471,6 @@
     function answerQ(chosen) {
       clearInterval(timer);
       const item = quizQueue[qIdx];
-      document.getElementById(`opt-${item.ans}`).classList.add('correct');
-      if(chosen !== item.ans && chosen !== -1) {
-        document.getElementById(`opt-${chosen}`).classList.add('wrong');
-      }
-      
       const exp = document.getElementById('expBox');
       exp.innerHTML = `<strong>${chosen === item.ans ? '✅ Correct (+4)' : '❌ Incorrect (-1)'}</strong><br/>${item.exp}`;
       exp.style.display = 'block';
@@ -394,20 +478,135 @@
     }
 
     function nextQ() {
-      if(qIdx + 1 < quizQueue.length) {
-        qIdx++;
-        loadQ();
-      } else {
-        alert('🎉 Quiz Completed Successfully!');
-        switchTab('chapters');
-      }
+      if(qIdx + 1 < quizQueue.length) { qIdx++; loadQ(); }
+      else { alert('🎉 Quiz Completed!'); switchTab('chapters'); }
     }
 
-    // Initialize QR
-    const upi = encodeURIComponent("upi://pay?pa=9555829847@ibl&pn=NBS%20Biology&am=499&cu=INR");
-    document.getElementById('qrCodeImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${upi}`;
+    async function sendOTP() {
+      const phone = (document.getElementById('studentPhone').value || '').replace(/\D/g, '').slice(-10);
+      if (phone.length !== 10) { alert('Enter valid 10-digit number'); return; }
+      if (!db || !auth) { alert('Firebase not configured by admin yet.'); return; }
+      try {
+        const doc = await db.collection('nbs_students').doc(phone).get();
+        if (!doc.exists || Date.now() > doc.data().expiry) {
+          alert('❌ Number not activated or expired. Pay ₹499 and contact Bhanoo Sir.');
+          return;
+        }
+        if (!window.recaptchaVerifier) {
+          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+        }
+        confirmationResult = await auth.signInWithPhoneNumber('+91' + phone, window.recaptchaVerifier);
+        document.getElementById('otpBox').style.display = 'block';
+        alert('✅ OTP sent via SMS!');
+      } catch(e) { alert('OTP Error: ' + e.message); }
+    }
 
+    async function verifyOTP() {
+      const code = (document.getElementById('otpCode').value || '').trim();
+      const phone = (document.getElementById('studentPhone').value || '').replace(/\D/g, '').slice(-10);
+      try {
+        await confirmationResult.confirm(code);
+        const token = 'SESS_' + Date.now();
+        await db.collection('nbs_students').doc(phone).update({ activeSession: token });
+        appState.loggedPhone = phone;
+        appState.sessionToken = token;
+        const doc = await db.collection('nbs_students').doc(phone).get();
+        appState.proExpiry = doc.data().expiry;
+        saveState();
+        startWatcher();
+        alert('🎉 Login Successful!');
+        switchTab('chapters');
+      } catch(e) { alert('Invalid OTP: ' + e.message); }
+    }
+
+    function logoutStudent() {
+      if(sessionUnsub) sessionUnsub();
+      appState.proExpiry = 0; appState.loggedPhone = ''; appState.sessionToken = '';
+      saveState(); alert('Logged out.'); switchTab('pro');
+    }
+
+    // BHANOO SIR ADMIN LOGIC (Password: Bhanoo@9555)
+    let tapCount = 0, tapTimer = null;
+    document.getElementById('brandLogoTap').addEventListener('click', () => {
+      tapCount++;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
+      if (tapCount >= 5) {
+        tapCount = 0;
+        const pwd = prompt('Enter Bhanoo Sir Admin Password:');
+        if (pwd === 'Bhanoo@9555') {
+          document.getElementById('admFbJson').value = appState.fbConfig ? JSON.stringify(appState.fbConfig) : '';
+          loadAdminStudents();
+          document.getElementById('adminModal').classList.add('open');
+        } else if (pwd !== null) {
+          alert('❌ Incorrect Password!');
+        }
+      }
+    });
+
+    function closeAdmin() { document.getElementById('adminModal').classList.remove('open'); renderChapters(); }
+
+    async function grantStudentAccess() {
+      const phone = (document.getElementById('admPhone').value || '').replace(/\D/g, '').slice(-10);
+      const name = (document.getElementById('admName').value || 'Student').trim();
+      if (phone.length !== 10) { alert('Enter valid 10-digit number'); return; }
+      if (!db) { alert('Save Firebase config first!'); return; }
+      const expiry = Date.now() + (300 * 24 * 60 * 60 * 1000); // 300 Days
+      await db.collection('nbs_students').doc(phone).set({ phone, name, expiry, activeSession: '' }, { merge: true });
+      alert(`✅ Granted 10-Month Access to +91 ${phone}`);
+      document.getElementById('admPhone').value = '';
+      document.getElementById('admName').value = '';
+      loadAdminStudents();
+    }
+
+    async function loadAdminStudents() {
+      const container = document.getElementById('studentsListContainer');
+      if (!db) { container.innerHTML = 'Firebase not connected.'; return; }
+      container.innerHTML = 'Loading...';
+      try {
+        const snap = await db.collection('nbs_students').get();
+        if (snap.empty) { container.innerHTML = 'No students found.'; return; }
+        let html = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          const active = Date.now() < d.expiry;
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-2); padding:6px 8px; border-radius:8px; margin-bottom:6px;">
+              <div>
+                <strong>+91 ${d.phone}</strong> (${d.name || 'N/A'})<br/>
+                <span style="font-size:10px; color:${active ? '#10b981' : '#ef4444'}">${active ? 'Active' : 'Expired'}</span>
+              </div>
+              <button class="btn-secondary" style="width:auto; padding:4px 8px; margin:0; background:rgba(239,68,68,0.2); color:#ef4444; border-color:#ef4444; font-size:11px;" onclick="stopStudentAccess('${d.phone}')">🚫 Stop Access</button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch(e) { container.innerHTML = 'Error loading students: ' + e.message; }
+    }
+
+    async function stopStudentAccess(phone) {
+      if (!confirm(`Are you sure you want to stop/block access for +91 ${phone}?`)) return;
+      await db.collection('nbs_students').doc(phone).update({ expiry: Date.now() - 1000, activeSession: 'BLOCKED' });
+      alert(`🚫 Access stopped for +91 ${phone}`);
+      loadAdminStudents();
+    }
+
+    function saveFbConfig() {
+      try {
+        appState.fbConfig = JSON.parse(document.getElementById('admFbJson').value.trim());
+        saveState();
+        initFirebase();
+        alert('✅ Firebase Config Saved!');
+        loadAdminStudents();
+      } catch(e) { alert('Invalid JSON format'); }
+    }
+
+    // QR Init
+    document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=` + encodeURIComponent("upi://pay?pa=9555829847@ibl&pn=Bhanoo%20Prakash&am=499&cu=INR");
+
+    initFirebase();
     renderChapters();
+    updateUI();
   </script>
 </body>
 </html>
