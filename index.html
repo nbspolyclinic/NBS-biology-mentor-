@@ -211,23 +211,22 @@
       </div>
     </section>
 
-    <!-- PRO / LOGIN SCREEN -->
+    <!-- PRO / LOGIN SCREEN (One-Time Activation Password) -->
     <section id="screen-pro" class="section">
       <div class="hero-card">
-        <span class="hero-tag">🔒 Single-Device Pro Plan</span>
-        <h1 id="loginHeadline">Student Login (Firebase Phone Auth)</h1>
-        <p>Enter your 10-digit mobile number activated by Bhanoo Sir.</p>
+        <span class="hero-tag">🔒 Single-Device Secure Login</span>
+        <h1 id="loginHeadline">Student Login</h1>
+        <p>Enter your 10-digit mobile number and the One-Time Activation Code given by Bhanoo Sir.</p>
       </div>
 
       <div class="q-card">
+        <label style="font-size:11px; color:var(--muted);">Mobile Number</label>
         <input type="tel" id="studentPhone" class="field-input" maxlength="10" placeholder="Enter 10-digit Mobile Number" />
-        <div id="recaptcha-container"></div>
-        <button class="btn-primary" id="sendOtpBtn" onclick="sendOTP()">📩 Send Real SMS OTP</button>
+        
+        <label style="font-size:11px; color:var(--muted);">One-Time Activation Password</label>
+        <input type="text" id="studentTokenInput" class="field-input" placeholder="Enter Activation Code (e.g., NBS-XXXX)" />
 
-        <div id="otpBox" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
-          <input type="number" id="otpCode" class="field-input" placeholder="Enter 6-digit OTP" />
-          <button class="btn-primary" onclick="verifyOTP()">✅ Verify & Unlock App</button>
-        </div>
+        <button class="btn-primary" onclick="verifyStudentActivation()">🔓 Unlock Pro Access</button>
         <button class="btn-secondary" id="logoutBtn" style="display:none; margin-top:10px; background:rgba(239,68,68,0.2); border-color:#ef4444; color:#f87171;" onclick="logoutStudent()">🚪 Logout</button>
       </div>
 
@@ -256,22 +255,21 @@
       </div>
 
       <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:12px; border-radius:14px; margin-bottom:12px;">
-        <h4 style="font-size:13px; font-weight:800; color:#10b981; margin-bottom:6px;">⚡ Give Access (300 Days Pro)</h4>
+        <h4 style="font-size:13px; font-weight:800; color:#10b981; margin-bottom:6px;">⚡ Generate One-Time Activation Code</h4>
         <input type="tel" id="admPhone" class="field-input" maxlength="10" placeholder="Student 10-digit Mobile No." />
         <input type="text" id="admName" class="field-input" placeholder="Student Name" />
-        <button class="btn-primary" style="margin-top:2px;" onclick="grantStudentAccess()">✅ Grant Access (Activate)</button>
+        <button class="btn-primary" style="margin-top:2px;" onclick="generateStudentCode()">🔑 Generate New Code</button>
       </div>
 
-      <h4 style="font-size:13px; font-weight:800; margin-bottom:6px;">📋 Activated Students (Stop/Block Access)</h4>
-      <div id="studentsListContainer" style="max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:12px;">
+      <h4 style="font-size:13px; font-weight:800; margin-bottom:6px;">📋 Activated Students List</h4>
+      <div id="studentsListContainer" style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:12px;">
         Loading students...
       </div>
     </div>
   </div>
 
-  <!-- Firebase SDKs (App, Auth, Firestore) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
@@ -326,14 +324,13 @@
     appState.loggedPhone = appState.loggedPhone || '';
     appState.sessionToken = appState.sessionToken || '';
 
-    let db = null, auth = null, confirmationResult = null, sessionUnsub = null;
+    let db = null, sessionUnsub = null;
     let currentFilter = 'all', selectedChapter = null;
     let quizQueue = [], qIdx = 0, timer = null, timeLeft = 60;
 
     function initFirebase() {
       try {
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        auth = firebase.auth();
         db = firebase.firestore();
         if (appState.loggedPhone && appState.sessionToken) startWatcher();
       } catch(e) { console.warn(e); }
@@ -379,7 +376,7 @@
         loginHead.textContent = `🟢 Logged in (+91 ${appState.loggedPhone})`;
         logoutBtn.style.display = 'block';
       } else {
-        loginHead.textContent = 'Student Login (Firebase Phone Auth)';
+        loginHead.textContent = 'Student Login';
         logoutBtn.style.display = 'none';
       }
     }
@@ -402,7 +399,6 @@
       });
       renderChapters();
     }
-
     function renderChapters() {
       const list = document.getElementById('chapterList');
       const filtered = CHAPTERS.filter(c => currentFilter === 'all' || c.cls === currentFilter);
@@ -542,63 +538,23 @@
       loadQuestion();
     }
 
-    // REAL FIREBASE PHONE AUTHENTICATION (SMS OTP)
-    function sendOTP() {
+    // ONE-TIME ACTIVATION CODE VERIFICATION FOR STUDENTS
+    function verifyStudentActivation() {
       const phone = document.getElementById('studentPhone').value.trim();
-      if (phone.length !== 10) {
-        alert('Please enter a valid 10-digit mobile number.');
-        return;
-      }
-      if (!auth) {
-        alert('Firebase Auth is not initialized.');
-        return;
-      }
-
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-          'size': 'invisible'
-        });
-      }
-
-      const appVerifier = window.recaptchaVerifier;
-      auth.signInWithPhoneNumber('+91' + phone, appVerifier).then(result => {
-        confirmationResult = result;
-        document.getElementById('otpBox').style.display = 'block';
-        alert('📩 Real SMS OTP sent successfully to +91 ' + phone);
-      }).catch(err => {
-        alert('Error sending SMS OTP: ' + err.message);
-      });
-    }
-
-    function verifyOTP() {
-      const code = document.getElementById('otpCode').value.trim();
-      const phone = document.getElementById('studentPhone').value.trim();
+      const tokenInput = document.getElementById('studentTokenInput').value.trim();
       
-      if (!code || code.length !== 6) {
-        alert('Please enter a valid 6-digit OTP.');
+      if (phone.length !== 10 || !tokenInput) {
+        alert('Please enter both your 10-digit mobile number and the activation code.');
         return;
       }
-
-      if (!confirmationResult) {
-        alert('Please request OTP first.');
-        return;
-      }
-
-      confirmationResult.confirm(code).then(result => {
-        verifyDatabaseAccess(phone);
-      }).catch(err => {
-        alert('Invalid OTP code. Please try again.');
-      });
-    }
-
-    function verifyDatabaseAccess(phone) {
       if (!db) {
-        grantLocalPro(phone);
+        alert('Database not connected.');
         return;
       }
+
       db.collection('nbs_students').doc(phone).get().then(doc => {
         if (!doc.exists) {
-          alert('❌ Your mobile number is not activated by Bhanoo Sir yet. Please pay ₹499 via UPI and send screenshot on WhatsApp.');
+          alert('❌ This mobile number is not registered. Please pay ₹499 and contact Bhanoo Sir.');
           return;
         }
         const data = doc.data();
@@ -606,36 +562,37 @@
           alert('⏰ Your 10-Month Pro Access has expired.');
           return;
         }
-        
-        const token = Math.random().toString(36).substring(2);
-        doc.ref.update({ activeSession: token }).then(() => {
+        if (data.isTokenUsed) {
+          alert('❌ This activation code has already been used! Please contact Bhanoo Sir for a new code.');
+          return;
+        }
+        if (data.oneTimeToken !== tokenInput) {
+          alert('❌ Incorrect activation code. Please check and try again.');
+          return;
+        }
+
+        // Mark token as used and create single device session token
+        const sessionToken = Math.random().toString(36).substring(2);
+        doc.ref.update({
+          isTokenUsed: true,
+          activeSession: sessionToken
+        }).then(() => {
           appState.loggedPhone = phone;
-          appState.sessionToken = token;
+          appState.sessionToken = sessionToken;
           appState.proExpiry = data.expiry || (Date.now() + 300*86400000);
           saveState();
-          alert('🟢 Success! Pro Access unlocked for 10 Months.');
+          alert('🟢 Success! Pro Access unlocked successfully.');
           startWatcher();
           switchTab('chapters');
           renderChapters();
         });
       }).catch(err => {
-        grantLocalPro(phone);
+        alert('Error: ' + err.message);
       });
-    }
-
-    function grantLocalPro(phone) {
-      appState.loggedPhone = phone;
-      appState.sessionToken = 'local_token';
-      appState.proExpiry = Date.now() + 300*86400000;
-      saveState();
-      alert('🟢 Pro Plan activated successfully!');
-      switchTab('chapters');
-      renderChapters();
     }
 
     function logoutStudent() {
       if (sessionUnsub) sessionUnsub();
-      if (auth) auth.signOut();
       appState.proExpiry = 0;
       appState.loggedPhone = '';
       appState.sessionToken = '';
@@ -670,7 +627,7 @@
       document.getElementById('adminModal').classList.remove('open');
     }
 
-    function grantStudentAccess() {
+    function generateStudentCode() {
       const phone = document.getElementById('admPhone').value.trim();
       const name = document.getElementById('admName').value.trim() || 'Student';
       if (phone.length !== 10) {
@@ -682,15 +639,20 @@
         return;
       }
 
-      const expiryDate = Date.now() + (300 * 24 * 60 * 60 * 1000);
+      // Generate a secure random 6-character activation code e.g. NBS-7482
+      const randomCode = 'NBS-' + Math.floor(1000 + Math.random() * 9000);
+      const expiryDate = Date.now() + (300 * 24 * 60 * 60 * 1000); // 300 days
+
       db.collection('nbs_students').doc(phone).set({
         name: name,
         phone: phone,
+        oneTimeToken: randomCode,
+        isTokenUsed: false,
         expiry: expiryDate,
         activeSession: '',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true }).then(() => {
-        alert(`✅ Access granted to ${name} (+91 ${phone}) for 10 months!`);
+        alert(`✅ Code Generated Successfully!\n\nStudent: ${name} (+91 ${phone})\nActivation Code: ${randomCode}\n\n(Share this code with the student on WhatsApp)`);
         document.getElementById('admPhone').value = '';
         document.getElementById('admName').value = '';
         loadAdminStudents();
@@ -716,12 +678,15 @@
           const d = doc.data();
           const daysLeft = Math.max(0, Math.ceil((d.expiry - Date.now()) / (1000*60*60*24)));
           html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding:6px 0;">
-              <div>
-                <strong>${d.name || 'Student'}</strong> (+91 ${d.phone})<br>
-                <span style="color:var(--primary);">Expires in ${daysLeft} days</span>
+            <div style="border-bottom:1px solid var(--border); padding:6px 0;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong>${d.name || 'Student'}</strong> (+91 ${d.phone})<br>
+                  <span style="color:var(--accent);">Code: <code>${d.oneTimeToken || 'N/A'}</code></span> | 
+                  <span style="color:${d.isTokenUsed ? '#f87171' : '#10b981'};">${d.isTokenUsed ? 'Used 🔴' : 'Active 🟢'}</span>
+                </div>
+                <button class="btn-secondary" style="width:auto; padding:3px 8px; margin:0; background:rgba(239,68,68,0.2); color:#f87171; border-color:#ef4444;" onclick="resetStudentToken('${d.phone}')">Reset Code</button>
               </div>
-              <button class="btn-secondary" style="width:auto; padding:3px 8px; margin:0; background:rgba(239,68,68,0.2); color:#f87171; border-color:#ef4444;" onclick="blockStudent('${d.phone}')">Stop Access</button>
             </div>
           `;
         });
@@ -731,12 +696,14 @@
       });
     }
 
-    function blockStudent(phone) {
-      if (!confirm(`Are you sure you want to stop access for +91 ${phone}?`)) return;
+    function resetStudentToken(phone) {
+      const newCode = 'NBS-' + Math.floor(1000 + Math.random() * 9000);
       db.collection('nbs_students').doc(phone).update({
-        activeSession: 'BLOCKED_BY_ADMIN'
+        oneTimeToken: newCode,
+        isTokenUsed: false,
+        activeSession: ''
       }).then(() => {
-        alert('Student access stopped successfully.');
+        alert(`✅ New Activation Code generated for +91 ${phone}: ${newCode}`);
         loadAdminStudents();
       });
     }
@@ -750,4 +717,3 @@
   </script>
 </body>
 </html>
-  
