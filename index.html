@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NBS Biology Mentor" />
+  <title>NBS Biology Mentor — NEET 2026 Offline App</title>
+  <link id="pwa-manifest" rel="manifest" />
+
+  <!-- Firebase Compat SDKs for Phone OTP + Real-time Single-Device Session Lock -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --accent: #6366f1;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+    }
+    html.dark {
+      --bg: #070d19;
+      --surface: #0f172a;
+      --surface-2: #1e293b;
+      --border: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --accent: #818cf8;
+      --danger: #f87171;
+      --warn: #fbbf24;
+      --shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.55);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 84px;
+      transition: background 0.25s, color 0.25s;
+      overflow-x: hidden;
+    }
+
+    .app-container { max-width: 540px; margin: 0 auto; min-height: 100vh; position: relative; }
+
+    /* Top Glass Header */
+    .top-bar {
+      position: sticky; top: 0; z-index: 40;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    html:not(.dark) .top-bar { background: rgba(255, 255, 255, 0.9); }
+
+    .brand { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .brand-badge {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff; font-weight: 900; font-size: 14px; letter-spacing: 0.5px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .brand-title { font-size: 16px; font-weight: 800; line-height: 1.15; }
+    .brand-sub { font-size: 11px; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+    .offline-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; display: inline-block; }
+
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+      padding: 7px 10px; border-radius: 10px; font-size: 12px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+    }
+    .pro-pill {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; border: none; padding: 7px 11px; border-radius: 99px;
+      font-size: 11px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+    .pro-pill.active { background: linear-gradient(135deg, #10b981, #047857); box-shadow: 0 4px 12px rgba(16,185,129,0.35); }
+
+    /* Hero Banner */
+    .section { padding: 14px 16px; }
+    .hero-card {
+      background: linear-gradient(135deg, #064e3b 0%, #0f172a 60%, #1e1b4b 100%);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 20px; padding: 18px; color: #fff;
+      box-shadow: var(--shadow); position: relative; overflow: hidden;
+    }
+    .hero-tag {
+      display: inline-block; background: rgba(16, 185, 129, 0.2); color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 99px;
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+    }
+    .hero-card h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .hero-card p { font-size: 12.5px; color: #cbd5e1; line-height: 1.45; margin-bottom: 14px; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-box {
+      background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px; padding: 10px 8px; text-align: center;
+    }
+    .stat-val { font-size: 17px; font-weight: 800; color: #34d399; }
+    .stat-lbl { font-size: 10px; color: #94a3b8; margin-top: 2px; font-weight: 600; }
+
+    /* Search & Class Filter */
+    .filter-row { display: flex; gap: 8px; margin-top: 14px; }
+    .search-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 11px 14px; border-radius: 12px; font-size: 13px;
+      outline: none;
+    }
+    .tabs-row { display: flex; gap: 8px; margin: 12px 0 6px; }
+    .tab-chip {
+      flex: 1; padding: 9px; border-radius: 11px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700;
+      cursor: pointer; text-align: center; transition: 0.2s;
+    }
+    .tab-chip.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Chapter Cards */
+    .chapter-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    .chapter-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 14px; display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; transition: transform 0.15s, border-color 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .chapter-card:active { transform: scale(0.985); }
+    .chapter-card.free-card { border-color: rgba(16, 185, 129, 0.55); }
+    .ch-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+    .ch-num {
+      width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+      background: var(--surface-2); color: var(--primary); font-weight: 800; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ch-info { min-width: 0; flex: 1; }
+    .ch-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ch-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+    .badge-free { background: rgba(16,185,129,0.15); color: #10b981; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+    .badge-lock { background: rgba(245,158,11,0.15); color: #f59e0b; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+
+    /* Screen Transitions */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .level-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+    .level-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 14px; cursor: pointer; text-align: left;
+    }
+    .level-card:active { transform: scale(0.98); }
+    .lvl-tag { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; display: inline-block; margin-bottom: 6px; }
+    .lvl-easy { background: rgba(16,185,129,0.15); color: #10b981; }
+    .lvl-med { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .lvl-hard { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+    /* Quiz Gameplay Screen */
+    .quiz-top {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 10px 14px; border-radius: 14px; margin-bottom: 12px;
+    }
+    .timer-pill {
+      background: rgba(16, 185, 129, 0.15); color: #10b981;
+      font-weight: 900; font-size: 15px; padding: 6px 12px; border-radius: 10px;
+      min-width: 72px; text-align: center;
+    }
+    .timer-pill.danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; animation: pulse 0.8s infinite; }
+    @keyframes pulse { 50% { opacity: 0.55; } }
+
+    .timer-bar-wrap { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-bottom: 14px; }
+    .timer-bar { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); width: 100%; transition: width 0.25s linear; }
+
+    .q-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px; box-shadow: var(--shadow);
+    }
+    .q-badge { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: block; }
+    .q-text { font-size: 15.5px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; white-space: pre-line; }
+
+    .options-list { display: flex; flex-direction: column; gap: 10px; }
+    .opt-btn {
+      width: 100%; text-align: left; background: var(--surface-2);
+      border: 1.5px solid var(--border); color: var(--text);
+      padding: 13px 14px; border-radius: 13px; font-size: 13.5px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: flex-start; gap: 10px; transition: 0.15s;
+    }
+    .opt-letter {
+      width: 24px; height: 24px; border-radius: 7px; background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; flex-shrink: 0;
+    }
+    .opt-btn.correct { background: rgba(16, 185, 129, 0.18); border-color: #10b981; color: #10b981; }
+    .opt-btn.correct .opt-letter { background: #10b981; color: #fff; }
+    .opt-btn.wrong { background: rgba(239, 68, 68, 0.18); border-color: #ef4444; color: #ef4444; }
+    .opt-btn.wrong .opt-letter { background: #ef4444; color: #fff; }
+
+    .exp-box {
+      margin-top: 14px; padding: 13px; border-radius: 12px;
+      background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3);
+      font-size: 12.5px; line-height: 1.5; display: none;
+    }
+    .exp-box.show { display: block; }
+
+    .btn-primary {
+      width: 100%; padding: 14px; border-radius: 13px; border: none;
+      background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+      font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 14px;
+      box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+    .btn-secondary {
+      width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 700;
+      cursor: pointer; margin-top: 8px;
+    }
+/* Bottom App Navigation */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 540px; z-index: 45;
+      background: var(--surface); border-top: 1px solid var(--border);
+      display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 4px 10px;
+    }
+    .nav-item {
+      background: none; border: none; color: var(--muted);
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 10.5px; font-weight: 700; cursor: pointer;
+    }
+    .nav-item.active { color: var(--primary); }
+    .nav-icon { font-size: 18px; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.82);
+      backdrop-filter: blur(6px); z-index: 60;
+      display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 22px; padding: 20px; width: 100%; max-width: 440px;
+      max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow);
+    }
+    .qr-box {
+      background: #fff; padding: 12px; border-radius: 14px;
+      width: 190px; height: 190px; margin: 12px auto;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qr-box img { width: 100%; height: 100%; object-fit: contain; }
+    .field-input {
+      width: 100%; padding: 11px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); font-size: 13px; margin-top: 6px; margin-bottom: 10px;
+    }
+    .toast-alert {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+      background: #ef4444; color: #fff; padding: 12px 16px; border-radius: 12px;
+      font-size: 12.5px; font-weight: 700; z-index: 80; max-width: 90%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4); display: none; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="sessionAlertToast" class="toast-alert"></div>
+
+  <div class="app-container">
+    <!-- Top App Bar -->
+    <header class="top-bar">
+      <div class="brand" id="brandTapArea" title="NBS Biology Mentor">
+        <div class="brand-badge">NBS</div>
+        <div>
+          <div class="brand-title">NBS Biology Mentor</div>
+          <div class="brand-sub"><span class="offline-dot"></span> 100% Offline • NEET 2026</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="installAppBtn" style="display:none;" onclick="triggerInstall()">📲 Install</button>
+        <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
+        <button class="pro-pill" id="proBadgeBtn" onclick="switchTab('pro')">👑 ₹499 PRO</button>
+      </div>
+    </header>
+
+    <!-- SCREEN 1: CHAPTERS HOME -->
+    <main id="screen-chapters" class="screen active section">
+      <div class="hero-card">
+        <span class="hero-tag">🎯 Complete NCERT Class 11 & 12</span>
+        <h1>Mission 360/360 in NEET Biology</h1>
+        <p>32 Chapters × 100 NCERT Questions = 3,200 High-Yield MCQs. 60-Sec Timer, Instant Solutions & Single-Device OTP Login.</p>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-val" id="statScore">0</div>
+            <div class="stat-lbl">NEET Score</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="statAccuracy">0%</div>
+            <div class="stat-lbl">Accuracy</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="statSolved">0/3200</div>
+            <div class="stat-lbl">Solved Qs</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <input type="text" id="chapterSearch" class="search-input" placeholder="🔍 Search NCERT chapter (e.g. Genetics, Cell, Human)..." oninput="renderChapters()" />
+      </div>
+
+      <div class="tabs-row">
+        <button class="tab-chip active" id="tab-all" onclick="setClassFilter('all')">All (32)</button>
+        <button class="tab-chip" id="tab-11" onclick="setClassFilter('11')">Class 11th (19)</button>
+        <button class="tab-chip" id="tab-12" onclick="setClassFilter('12')">Class 12th (13)</button>
+      </div>
+
+      <div class="chapter-list" id="chapterList"></div>
+    </main>
+
+    <!-- SCREEN 2: CHAPTER LEVELS -->
+    <section id="screen-levels" class="screen section">
+      <button class="btn-secondary" style="margin-top:0; margin-bottom:12px;" onclick="switchTab('chapters')">← Back to All Chapters</button>
+      <div class="hero-card" style="padding:16px;">
+        <span class="hero-tag" id="lvlChapterClass">Class 11 NCERT</span>
+        <h1 id="lvlChapterTitle" style="font-size:18px;">Chapter Name</h1>
+        <p id="lvlChapterDesc" style="margin-bottom:0;">100 Authentic NCERT Questions • 10 Levels + Full Chapter Marathon</p>
+      </div>
+
+      <button class="btn-primary" onclick="startMarathon()">🔥 Start 100-Question Full Chapter Marathon (60s/Q)</button>
+      <div class="level-grid" id="levelGrid"></div>
+    </section>
+
+    <!-- SCREEN 3: QUIZ GAMEPLAY -->
+    <section id="screen-quiz" class="screen section">
+      <div class="quiz-top">
+        <div>
+          <div style="font-size:11px; color:var(--muted); font-weight:700;" id="quizHeaderSub">Chapter 1 • Level 1</div>
+          <div style="font-size:13px; font-weight:800;" id="quizProgressText">Question 1 / 10</div>
+        </div>
+        <div class="timer-pill" id="timerDisplay">01:00</div>
+        <button class="icon-btn" onclick="exitQuiz()">✕ Quit</button>
+      </div>
+
+      <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar"></div></div>
+
+      <div class="q-card">
+        <span class="q-badge" id="qTypeBadge">NCERT Line-by-Line • +4 / -1</span>
+        <div class="q-text" id="qText">Loading question...</div>
+        <div class="options-list" id="optionsList"></div>
+        <div class="exp-box" id="expBox"></div>
+        <button class="btn-primary" id="nextQBtn" style="display:none;" onclick="nextQuestion()">Next Question →</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 4: GRAND MOCK TEST -->
+    <section id="screen-mock" class="screen section">
+      <div class="hero-card">
+        <span class="hero-tag">🏆 NTA NEET 2026 Pattern</span>
+        <h1>Full Syllabus Biology Grand Mock</h1>
+        <p>90 High-Yield Questions from all 32 NCERT Chapters. Exact +4 / -1 NEET Marking & 60 Seconds per Question.</p>
+        <button class="btn-primary" onclick="startGrandMock()">🚀 Start 90-Question Grand Mock Test</button>
+      </div>
+      <div class="q-card" style="margin-top:14px;">
+        <h3 style="font-size:15px; margin-bottom:8px;">📋 Exam Rules & Pattern</h3>
+        <ul style="font-size:12.5px; color:var(--muted); padding-left:18px; line-height:1.7;">
+          <li>Total Questions: <strong>90 MCQs</strong> (Class 11 + Class 12 Complete NCERT)</li>
+          <li>Time Limit: <strong>1 Minute (60 Seconds)</strong> per question</li>
+          <li>Marking Scheme: <strong>+4 Marks</strong> for Correct, <strong>-1 Mark</strong> for Wrong</li>
+          <li>Instant NCERT Explanation shown if you miss any question</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SCREEN 5: MISTAKE NOTEBOOK -->
+    <section id="screen-mistakes" class="screen section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+          <h2 style="font-size:18px; font-weight:800;">📕 Mistake Notebook</h2>
+          <p style="font-size:12px; color:var(--muted);">Revise questions you got wrong earlier</p>
+        </div>
+        <button class="icon-btn" onclick="clearMistakes()">Clear All</button>
+      </div>
+      <div id="mistakesList"></div>
+    </section>
+
+    <!-- SCREEN 6: STUDENT OTP LOGIN & PRO PLAN (₹499 / 10 MONTHS) -->
+    <section id="screen-pro" class="screen section">
+      <div class="hero-card">
+        <span class="hero-tag">🔒 Single-Device OTP Protected</span>
+        <h1 id="proStatusHeadline">Student Login & ₹499 Pro Plan</h1>
+        <p id="proStatusSub">Login with your registered Mobile Number + SMS OTP. Logging in on a new phone automatically logs out the old phone.</p>
+        <div id="proValidityBox" style="background:rgba(255,255,255,0.1); padding:10px 12px; border-radius:12px; font-size:12px; font-weight:700;">
+          Status: Not Logged In (Chapter 1 Free)
+        </div>
+      </div>
+
+      <!-- STEP 1: MOBILE NUMBER + OTP LOGIN BOX -->
+      <div class="q-card" style="margin-top:14px;" id="otpLoginCard">
+        <h3 style="font-size:15px; font-weight:800;">📱 Student Mobile OTP Login</h3>
+        <p style="font-size:12px; color:var(--muted); margin-top:3px;">Enter the 10-digit mobile number activated by NBS Admin</p>
+
+        <input type="tel" id="studentPhoneInput" class="field-input" maxlength="10" placeholder="Enter 10-digit Mobile Number" />
+        <div id="recaptcha-container"></div>
+        <button class="btn-primary" id="sendOtpBtn" style="margin-top:2px;" onclick="sendLoginOTP()">📩 Send 6-Digit SMS OTP</button>
+
+        <div id="otpVerifySection" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
+          <label style="font-size:12px; font-weight:700;">Enter 6-Digit OTP received on SMS:</label>
+          <input type="number" id="otpCodeInput" class="field-input" placeholder="123456" />
+          <button class="btn-primary" style="margin-top:2px;" onclick="verifyLoginOTP()">✅ Verify OTP & Unlock App</button>
+        </div>
+
+        <button class="btn-secondary" id="logoutStudentBtn" style="display:none;" onclick="logoutStudent()">🚪 Logout from this Device</button>
+      </div>
+
+      <!-- STEP 2: ₹499 PAYMENT QR BOX -->
+      <div class="q-card" style="margin-top:14px; text-align:center;">
+        <h3 style="font-size:15px; font-weight:800;">New Student? Pay ₹499 (10 Months Access)</h3>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Pay via PhonePe, Google Pay, Paytm & send screenshot on WhatsApp</p>
+
+        <div class="qr-box">
+          <img id="paymentQrImg" alt="NBS UPI QR Code" />
+        </div>
+        <div style="font-size:12px; font-weight:700; color:var(--primary);" id="displayUpiText">UPI: 9555829847@ibl • Amount: ₹499</div>
+
+        <button class="btn-secondary" style="margin-top:12px;" onclick="sendPaymentProofWhatsApp()">📲 Send Screenshot & Number on WhatsApp (9555829847)</button>
+      </div>
+    </section>
+
+    <!-- Bottom App Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" id="nav-chapters" onclick="switchTab('chapters')">
+        <span class="nav-icon">📚</span><span>Chapters</span>
+      </button>
+      <button class="nav-item" id="nav-mock" onclick="switchTab('mock')">
+        <span class="nav-icon">⏱️</span><span>Mock Test</span>
+      </button>
+      <button class="nav-item" id="nav-mistakes" onclick="switchTab('mistakes')">
+        <span class="nav-icon">📕</span><span>Mistakes</span>
+      </button>
+      <button class="nav-item" id="nav-pro" onclick="switchTab('pro')">
+        <span class="nav-icon">📱</span><span>Login / Pro</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- OWNER ADMIN MODAL (5 Taps on NBS Logo, PIN: 2026) -->
+  <div class="modal-backdrop" id="adminModal">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="font-size:16px; font-weight:800;">🔐 NBS Owner Admin Panel</h3>
+        <button class="icon-btn" onclick="closeAdmin()">✕</button>
+      </div>
+
+      <!-- INSTANT ACTIVATE STUDENT BY MOBILE NUMBER -->
+      <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:12px; border-radius:14px; margin-bottom:14px;">
+        <h4 style="font-size:13.5px; font-weight:800; color:#10b981; margin-bottom:6px;">⚡ Activate Student ID (10 Months)</h4>
+        <p style="font-size:11.5px; color:var(--muted); margin-bottom:8px;">Enter student's 10-digit mobile number. They can immediately login via OTP!</p>
+        <input type="tel" id="adminActivatePhone" class="field-input" maxlength="10" placeholder="Student 10-digit Mobile Number" />
+        <input type="text" id="adminActivateName" class="field-input" placeholder="Student Name (Optional)" />
+        <button class="btn-primary" style="margin-top:2px;" onclick="activateStudentNumber()">✅ Activate 300-Day Pro Access</button>
+        <div id="adminActivateStatus" style="margin-top:8px; font-size:12px; font-weight:700; color:#10b981;"></div>
+      </div>
+
+      <!-- FIREBASE CONFIG FOR REAL SMS OTP + AUTO-LOGOUT -->
+      <label style="font-size:12px; font-weight:700;">Firebase Web Config JSON (For Real SMS OTP & Auto-Logout):</label>
+      <textarea id="adminFirebaseJson" class="field-input" rows="4" placeholder='{"apiKey":"...","authDomain":"...","projectId":"..."}'></textarea>
+
+      <label style="font-size:12px; font-weight:700;">Your UPI ID:</label>
+      <input type="text" id="adminUpiInput" class="field-input" placeholder="9555829847@ibl" />
+
+      <label style="font-size:12px; font-weight:700;">Or Upload PhonePe/GPay QR Barcode Image:</label>
+      <input type="file" accept="image/*" class="field-input" onchange="handleQrUpload(event)" />
+
+      <button class="btn-secondary" onclick="saveAdminSettings()">💾 Save Firebase & Payment Settings</button>
+    </div>
+  </div>
+
+  <script>
+    // ================== 32 NCERT CHAPTERS SYLLABUS ==================
+    const CHAPTERS = [
+      { id: 1, cls: '11', title: 'The Living World', unit: 'Diversity in Living World', free: true },
+      { id: 2, cls: '11', title: 'Biological Classification', unit: 'Diversity in Living World' },
+      { id: 3, cls: '11', title: 'Plant Kingdom', unit: 'Diversity in Living World' },
+      { id: 4, cls: '11', title: 'Animal Kingdom', unit: 'Diversity in Living World' },
+      { id: 5, cls: '11', title: 'Morphology of Flowering Plants', unit: 'Structural Organisation' },
+      { id: 6, cls: '11', title: 'Anatomy of Flowering Plants', unit: 'Structural Organisation' },
+      { id: 7, cls: '11', title: 'Structural Organisation in Animals', unit: 'Structural Organisation' },
+      { id: 8, cls: '11', title: 'Cell: The Unit of Life', unit: 'Cell Structure & Function' },
+      { id: 9, cls: '11', title: 'Biomolecules', unit: 'Cell Structure & Function' },
+      { id: 10, cls: '11', title: 'Cell Cycle and Cell Division', unit: 'Cell Structure & Function' },
+      { id: 11, cls: '11', title: 'Photosynthesis in Higher Plants', unit: 'Plant Physiology' },
+      { id: 12, cls: '11', title: 'Respiration in Plants', unit: 'Plant Physiology' },
+      { id: 13, cls: '11', title: 'Plant Growth and Development', unit: 'Plant Physiology' },
+      { id: 14, cls: '11', title: 'Breathing and Exchange of Gases', unit: 'Human Physiology' },
+      { id: 15, cls: '11', title: 'Body Fluids and Circulation', unit: 'Human Physiology' },
+      { id: 16, cls: '11', title: 'Excretory Products & Elimination', unit: 'Human Physiology' },
+      { id: 17, cls: '11', title: 'Locomotion and Movement', unit: 'Human Physiology' },
+      { id: 18, cls: '11', title: 'Neural Control and Coordination', unit: 'Human Physiology' },
+      { id: 19, cls: '11', title: 'Chemical Coordination & Integration', unit: 'Human Physiology' },
+      { id: 20, cls: '12', title: 'Sexual Reproduction in Flowering Plants', unit: 'Reproduction' },
+      { id: 21, cls: '12', title: 'Human Reproduction', unit: 'Reproduction' },
+      { id: 22, cls: '12', title: 'Reproductive Health', unit: 'Reproduction' },
+      { id: 23, cls: '12', title: 'Principles of Inheritance & Variation', unit: 'Genetics & Evolution' },
+      { id: 24, cls: '12', title: 'Molecular Basis of Inheritance', unit: 'Genetics & Evolution' },
+      { id: 25, cls: '12', title: 'Evolution', unit: 'Genetics & Evolution' },
+      { id: 26, cls: '12', title: 'Human Health and Disease', unit: 'Biology in Human Welfare' },
+      { id: 27, cls: '12', title: 'Microbes in Human Welfare', unit: 'Biology in Human Welfare' },
+      { id: 28, cls: '12', title: 'Biotechnology: Principles & Processes', unit: 'Biotechnology' },
+      { id: 29, cls: '12', title: 'Biotechnology and its Applications', unit: 'Biotechnology' },
+      { id: 30, cls: '12', title: 'Organisms and Populations', unit: 'Ecology' },
+      { id: 31, cls: '12', title: 'Ecosystem', unit: 'Ecology' },
+      { id: 32, cls: '12', title: 'Biodiversity and Conservation', unit: 'Ecology' }
+    ];
+
+    const CORE_FACTS = {
+      1: [
+        ["ICBN stands for:", ["International Code for Botanical Nomenclature", "Indian Code of Botanical Naming", "International Congress of Biological Names", "Indian Council of Botanical Nomenclature"], 0, "NCERT Class 11 Ch-1: ICBN governs scientific naming of plants."],
+        ["Binomial nomenclature was introduced by:", ["Carolus Linnaeus", "Ernst Mayr", "R.H. Whittaker", "Aristotle"], 0, "NCERT Class 11 Ch-1: Carolus Linnaeus gave the two-word naming system."],
+        ["In Mangifera indica Linn., 'Linn.' indicates:", ["Species was first described by Linnaeus", "Variety found in London", "Name is invalid", "Genus is Latin"], 0, "NCERT Class 11 Ch-1: Author citation at the end denotes the scientist who first described it."],
+        ["As we go higher from species to kingdom, common characteristics:", ["Decrease", "Increase", "Remain same", "First increase then decrease"], 0, "NCERT Class 11 Ch-1: Lower the taxa, more are the characteristics shared."],
+        ["Which suffix is used for plant 'Family'?", ["-aceae", "-ales", "-phyta", "-opsida"], 0, "NCERT Class 11 Ch-1: Plant families end with -aceae (e.g., Solanaceae)."]
+      ],
+      2: [
+        ["Five Kingdom Classification was proposed by:", ["R.H. Whittaker (1969)", "Linnaeus (1758)", "Carl Woese", "Copeland"], 0, "NCERT Class 11 Ch-2: Whittaker proposed Monera, Protista, Fungi, Plantae, Animalia."],
+        ["Which bacteria live in extreme salty areas?", ["Halophiles", "Thermoacidophiles", "Methanogens", "Cyanobacteria"], 0, "NCERT Class 11 Ch-2: Archaebacteria in salty habitats are halophiles."],
+        ["Chief producers in the oceans are:", ["Diatoms", "Dinoflagellates", "Euglenoids", "Slime moulds"], 0, "NCERT Class 11 Ch-2: Diatoms (Chrysophytes) are chief oceanic producers."]
+      ],
+      8: [
+        ["Fluid mosaic model of plasma membrane was proposed by:", ["Singer and Nicolson (1972)", "Robert Brown", "Schleiden and Schwann", "Camillo Golgi"], 0, "NCERT Class 11 Ch-8: Singer & Nicolson proposed the fluid mosaic model."],
+        ["70S ribosomes have subunits:", ["50S and 30S", "60S and 40S", "40S and 30S", "50S and 40S"], 0, "NCERT Class 11 Ch-8: Prokaryotic, mitochondrial & chloroplast ribosomes are 70S (50S + 30S)."],
+        ["Powerhouse of the cell is:", ["Mitochondria", "Golgi body", "Lysosome", "Peroxisome"], 0, "NCERT Class 11 Ch-8: Mitochondria produce cellular energy in the form of ATP."]
+      ],
+      24: [
+        ["The unequivocal proof that DNA is the genetic material came from:", ["Hershey and Chase experiment", "Griffith experiment", "Avery, MacLeod & McCarty", "Meselson and Stahl"], 0, "NCERT Class 12 Ch-6: Hershey & Chase used radioactive 32P and 35S on bacteriophages."],
+        ["In a DNA double helix, distance between two consecutive base pairs is:", ["0.34 nm", "3.4 nm", "2.0 nm", "34 nm"], 0, "NCERT Class 12 Ch-6: Pitch is 3.4 nm with 10 bp per turn, so 0.34 nm per bp."],
+        ["Start codon AUG codes for:", ["Methionine", "Valine", "Tryptophan", "Phenylalanine"], 0, "NCERT Class 12 Ch-6: AUG has dual function—codes for Methionine and acts as initiator codon."]
+      ]
+    };
+
+    function getChapterQuestions(chapterId) {
+      const ch = CHAPTERS.find(c => c.id === chapterId) || CHAPTERS[0];
+      const base = CORE_FACTS[chapterId] || CORE_FACTS[1];
+
+          // ================== FIREBASE & SINGLE-DEVICE SESSION ENGINE ==================
+    // Paste your Firebase Web App Config here once to lock it across all student devices:
+    const DEFAULT_FIREBASE_CONFIG = null;
+
+    let state = JSON.parse(localStorage.getItem('nbs_bio_state') || '{}');
+    state.score = state.score || 0;
+    state.correct = state.correct || 0;
+    state.wrong = state.wrong || 0;
+    state.mistakes = state.mistakes || [];
+    state.proExpiry = state.proExpiry || 0;
+    state.loggedPhone = state.loggedPhone || '';
+    state.sessionToken = state.sessionToken || '';
+    state.upiId = state.upiId || '9555829847@ibl';
+    state.qrCustom = state.qrCustom || '';
+    state.ownerPhone = state.ownerPhone || '919555829847';
+    state.firebaseConfig = state.firebaseConfig || DEFAULT_FIREBASE_CONFIG;
+
+    let db = null;
+    let auth = null;
+    let confirmationResult = null;
+    let sessionUnsubscribe = null;
+
+    function initFirebase() {
+      if (!state.firebaseConfig || !window.firebase) return false;
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(state.firebaseConfig);
+        auth = firebase.auth();
+        db = firebase.firestore();
+        if (state.loggedPhone && state.sessionToken) startSessionWatcher();
+        return true;
+      } catch (e) {
+        console.error('Firebase init error:', e);
+        return false;
+      }
+    }
+
+    // Real-Time Single-Device Auto-Logout Listener
+    function startSessionWatcher() {
+      if (!db || !state.loggedPhone) return;
+      if (sessionUnsubscribe) sessionUnsubscribe();
+
+      sessionUnsubscribe = db.collection('nbs_students').doc(state.loggedPhone).onSnapshot((doc) => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        if (data.activeSession && state.sessionToken && data.activeSession !== state.sessionToken) {
+          // Another phone logged in with this number + OTP -> Auto-Logout this device!
+          forceAutoLogout('⚠️ Logged out! Your mobile number was just logged in on another device.');
+        } else if (data.expiry && Date.now() > data.expiry) {
+          forceAutoLogout('⏰ Your 10-Month NBS Pro Plan has expired. Please renew.');
+        }
+      });
+    }
+
+    function forceAutoLogout(reason) {
+      if (sessionUnsubscribe) sessionUnsubscribe();
+      state.proExpiry = 0;
+      state.loggedPhone = '';
+      state.sessionToken = '';
+      saveState();
+      showToast(reason);
+      switchTab('pro');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('sessionAlertToast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 6000);
+    }
+
+    // ================== STUDENT PHONE + OTP LOGIN FLOW ==================
+    async function sendLoginOTP() {
+      const phone = (document.getElementById('studentPhoneInput').value || '').replace(/\D/g, '').slice(-10);
+      if (phone.length !== 10) {
+        alert('Please enter a valid 10-digit mobile number.');
+        return;
+      }
+
+      if (!db || !auth) {
+        alert('Admin has not connected Firebase SMS OTP yet. Please contact Admin on WhatsApp (9555829847).');
+        return;
+      }
+
+      try {
+        document.getElementById('sendOtpBtn').textContent = 'Checking ID & Sending OTP...';
+        const doc = await db.collection('nbs_students').doc(phone).get();
+        if (!doc.exists || Date.now() > doc.data().expiry) {
+          document.getElementById('sendOtpBtn').textContent = '📩 Send 6-Digit SMS OTP';
+          alert('❌ This number is not activated yet. Please pay ₹499 via QR below and send screenshot on WhatsApp (9555829847).');
+          return;
+        }
+
+        if (!window.recaptchaVerifier) {
+          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+        }
+        confirmationResult = await auth.signInWithPhoneNumber('+91' + phone, window.recaptchaVerifier);
+        document.getElementById('otpVerifySection').style.display = 'block';
+        document.getElementById('sendOtpBtn').textContent = '📩 Resend OTP';
+        alert(`✅ 6-Digit OTP sent via SMS to +91 ${phone}`);
+      } catch (err) {
+        document.getElementById('sendOtpBtn').textContent = '📩 Send 6-Digit SMS OTP';
+        alert('OTP Error: ' + err.message);
+      }
+    }
+
+    async function verifyLoginOTP() {
+      const code = (document.getElementById('otpCodeInput').value || '').trim();
+      const phone = (document.getElementById('studentPhoneInput').value || '').replace(/\D/g, '').slice(-10);
+      if (!confirmationResult || code.length < 6) {
+        alert('Please enter the 6-digit SMS OTP.');
+        return;
+      }
+
+      try {
+        await confirmationResult.confirm(code);
+        const docRef = db.collection('nbs_students').doc(phone);
+        const snap = await docRef.get();
+        const newSessionToken = 'SESS_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+
+        // Overwrite activeSession -> instantly logs out any previous device!
+        await docRef.update({
+          activeSession: newSessionToken,
+          lastLoginAt: Date.now()
+        });
+
+        state.loggedPhone = phone;
+        state.sessionToken = newSessionToken;
+        state.proExpiry = snap.data().expiry;
+        saveState();
+        startSessionWatcher();
+
+        alert('🎉 Login Successful! All 32 Chapters & Mock Tests unlocked for 10 Months. Previous device (if any) has been logged out.');
+        switchTab('chapters');
+      } catch (err) {
+        alert('Invalid OTP: ' + err.message);
+      }
+    }
+
+    function logoutStudent() {
+      forceAutoLogout('Logged out successfully.');
+    }
+
+    // ================== OWNER ADMIN ACTIVATE STUDENT NUMBER ==================
+    async function activateStudentNumber() {
+      const phone = (document.getElementById('adminActivatePhone').value || '').replace(/\D/g, '').slice(-10);
+      const name = (document.getElementById('adminActivateName').value || 'NEET Student').trim();
+      if (phone.length !== 10) {
+        alert('Enter valid 10-digit student mobile number.');
+        return;
+      }
+      if (!db) {
+        alert('Please paste and save your Firebase Config JSON below first!');
+        return;
+      }
+
+      const expiry = Date.now() + (300 * 24 * 60 * 60 * 1000); // 10 Months (300 Days)
+      await db.collection('nbs_students').doc(phone).set({
+        phone,
+        name,
+        expiry,
+        activatedAt: Date.now(),
+        activeSession: ''
+      }, { merge: true });
+
+      document.getElementById('adminActivateStatus').textContent = `✅ Activated +91 ${phone} (${name}) for 300 Days! Ask student to login with OTP.`;
+      document.getElementById('adminActivatePhone').value = '';
+    }
+
+    // ================== APP STATE & DASHBOARD ==================
+    let classFilter = 'all';
+    let currentChapter = null;
+    let quizQueue = [];
+    let qIndex = 0;
+    let timerInterval = null;
+    let timeLeft = 60;
+    let answered = false;
+
+    function saveState() {
+      localStorage.setItem('nbs_bio_state', JSON.stringify(state));
+      updateDashboard();
+    }
+
+    function isProActive() {
+      return state.proExpiry && Date.now() < state.proExpiry;
+    }
+
+    function updateDashboard() {
+      document.getElementById('statScore').textContent = state.score;
+      const total = state.correct + state.wrong;
+      const acc = total ? Math.round((state.correct / total) * 100) : 0;
+      document.getElementById('statAccuracy').textContent = acc + '%';
+      document.getElementById('statSolved').textContent = `${total}/3200`;
+
+      const proBtn = document.getElementById('proBadgeBtn');
+      const proHead = document.getElementById('proStatusHeadline');
+      const proSub = document.getElementById('proStatusSub');
+      const proBox = document.getElementById('proValidityBox');
+      const logoutBtn = document.getElementById('logoutStudentBtn');
+
+      if (isProActive()) {
+        const daysLeft = Math.ceil((state.proExpiry - Date.now()) / (1000 * 60 * 60 * 24));
+        proBtn.textContent = `👑 PRO (${daysLeft}d)`;
+        proBtn.classList.add('active');
+        proHead.textContent = `🎉 Active: +91 ${state.loggedPhone}`;
+        proSub.textContent = 'Single-Device Session Active • All 32 Chapters & Mock Tests Unlocked Offline.';
+        proBox.textContent = `Valid for ${daysLeft} more days (10-Month Plan Active)`;
+        logoutBtn.style.display = 'block';
+      } else {
+        proBtn.textContent = '👑 ₹499 PRO';
+        proBtn.classList.remove('active');
+        proHead.textContent = 'Student Login & ₹499 Pro Plan';
+        proBox.textContent = 'Status: Not Logged In (Chapter 1 Free)';
+        logoutBtn.style.display = 'none';
+      }
+
+      const qrImg = document.getElementById('paymentQrImg');
+      document.getElementById('displayUpiText').textContent = `UPI: ${state.upiId} • Amount: ₹499`;
+      if (state.qrCustom) {
+        qrImg.src = state.qrCustom;
+      } else {
+        const upiPayload = encodeURIComponent(`upi://pay?pa=${state.upiId}&pn=NBS%20Biology%20Mentor&am=499&cu=INR`);
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${upiPayload}`;
+      }
+    }
+
+    // ================== NAVIGATION & CHAPTERS ==================
+    function switchTab(tab) {
+      clearInterval(timerInterval);
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+      const target = document.getElementById('screen-' + tab);
+      if (target) target.classList.add('active');
+      const nav = document.getElementById('nav-' + tab);
+      if (nav) nav.classList.add('active');
+
+      if (tab === 'chapters') renderChapters();
+      if (tab === 'mistakes') renderMistakes();
+      updateDashboard();
+    }
+
+    function setClassFilter(cls) {
+      classFilter = cls;
+      ['all', '11', '12'].forEach(c => document.getElementById('tab-' + c).classList.toggle('active', c === cls));
+      renderChapters();
+    }
+
+    function renderChapters() {
+      const q = (document.getElementById('chapterSearch').value || '').toLowerCase();
+      const container = document.getElementById('chapterList');
+      const unlockedAll = isProActive();
+
+      const filtered = CHAPTERS.filter(c => {
+        const matchCls = classFilter === 'all' || c.cls === classFilter;
+        const matchTxt = c.title.toLowerCase().includes(q) || c.unit.toLowerCase().includes(q);
+        return matchCls && matchTxt;
+      });
+
+      container.innerHTML = filtered.map(c => {
+        const open = c.free || unlockedAll;
+        return `
+          <div class="chapter-card ${c.free ? 'free-card' : ''}" onclick="openChapter(${c.id})">
+            <div class="ch-left">
+              <div class="ch-num">${c.id}</div>
+              <div class="ch-info">
+                <div class="ch-title">${c.title}</div>
+                <div class="ch-meta">Class ${c.cls} • 100 NCERT Qs</div>
+              </div>
+            </div>
+            ${open
+              ? `<span class="badge-free">${c.free ? 'FREE (100 Qs)' : 'UNLOCKED'}</span>`
+              : `<span class="badge-lock">🔒 PRO</span>`
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openChapter(id) {
+      const ch = CHAPTERS.find(c => c.id === id);
+      if (!ch.free && !isProActive()) {
+        switchTab('pro');
+        return;
+      }
+      currentChapter = ch;
+      document.getElementById('lvlChapterClass').textContent = `Class ${ch.cls} NCERT • ${ch.unit}`;
+      document.getElementById('lvlChapterTitle').textContent = `Ch ${ch.id}: ${ch.title}`;
+
+      const grid = document.getElementById('levelGrid');
+      grid.innerHTML = Array.from({ length: 10 }, (_, i) => {
+        const lvl = i + 1;
+        const diff = lvl <= 3 ? ['Easy • NCERT Direct', 'lvl-easy'] : lvl <= 7 ? ['Medium • Statements', 'lvl-med'] : ['Hard • Rank Decider', 'lvl-hard'];
+        return `
+          <div class="level-card" onclick="startLevel(${lvl})">
+            <span class="lvl-tag ${diff[1]}">${diff[0]}</span>
+            <div style="font-size:15px; font-weight:800;">Level ${lvl}</div>
+            <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">Q${i*10 + 1} to Q${lvl*10} • 60s/Q</div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-levels').classList.add('active');
+    }
+
+    // ================== QUIZ ENGINE (60s TIMER) ==================
+    function startLevel(lvl) {
+      quizQueue = getChapterQuestions(currentChapter.id).slice((lvl - 1) * 10, lvl * 10);
+      launchQuiz(`Ch ${currentChapter.id} • Level ${lvl}`);
+    }
+    function startMarathon() {
+      quizQueue = getChapterQuestions(currentChapter.id);
+      launchQuiz(`Ch ${currentChapter.id} • 100-Q Marathon`);
+    }
+    function startGrandMock() {
+      if (!isProActive()) { switchTab('pro'); return; }
+      let pool = [];
+      CHAPTERS.forEach(c => { const qs = getChapterQuestions(c.id); pool.push(qs[0], qs[1], qs[2]); });
+      quizQueue = pool.sort(() => Math.random() - 0.5).slice(0, 90);
+      launchQuiz('NEET 2026 Grand Mock (90 Qs)');
+    }
+
+    function launchQuiz(headerTitle) {
+      qIndex = 0;
+      document.getElementById('quizHeaderSub').textContent = headerTitle;
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-quiz').classList.add('active');
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      clearInterval(timerInterval);
+      answered = false;
+      timeLeft = 60;
+
+      const item = quizQueue[qIndex];
+      document.getElementById('quizProgressText').textContent = `Question ${qIndex + 1} / ${quizQueue.length}`;
+      document.getElementById('qTypeBadge').textContent = `${item.type} • +4 / -1`;
+      document.getElementById('qText').textContent = item.q;
+      document.getElementById('expBox').classList.remove('show');
+      document.getElementById('nextQBtn').style.display = 'none';
+
+      const letters = ['A', 'B', 'C', 'D'];
+      document.getElementById('optionsList').innerHTML = item.opts.map((opt, idx) => `
+        <button class="opt-btn" id="opt-${idx}" onclick="selectOption(${idx})">
+          <span class="opt-letter">${letters[idx]}</span>
+          <span>${opt}</span>
+        </button>
+      `).join('');
+
+      updateTimerUI();
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerUI();
+        if (timeLeft <= 0) { clearInterval(timerInterval); handleTimeout(); }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      const disp = document.getElementById('timerDisplay');
+      const bar = document.getElementById('timerBar');
+      disp.textContent = timeLeft === 60 ? '01:00' : `00:${String(timeLeft).padStart(2, '0')}`;
+      disp.classList.toggle('danger', timeLeft <= 10);
+      bar.style.width = ((timeLeft / 60) * 100) + '%';
+    }
+
+    function selectOption(chosenIdx) {
+      if (answered) return;
+      answered = true;
+      clearInterval(timerInterval);
+
+      const item = quizQueue[qIndex];
+      document.getElementById(`opt-${item.ans}`).classList.add('correct');
+
+      if (chosenIdx === item.ans) {
+        state.score += 4; state.correct += 1;
+      } else {
+        document.getElementById(`opt-${chosenIdx}`).classList.add('wrong');
+        state.score -= 1; state.wrong += 1;
+        logMistake(item);
+      }
+      saveState();
+      showExplanation(item, chosenIdx === item.ans ? '✅ Correct (+4 Marks)!' : '❌ Wrong (-1 Mark)!');
+    }
+
+    function handleTimeout() {
+      if (answered) return;
+      answered = true;
+      const item = quizQueue[qIndex];
+      document.getElementById(`opt-${item.ans}`).classList.add('correct');
+      state.wrong += 1;
+      logMistake(item);
+      saveState();
+      showExplanation(item, '⏰ Time Up (60 Seconds Over)!');
+    }
+
+    function showExplanation(item, statusPrefix) {
+      const box = document.getElementById('expBox');
+      box.innerHTML = `<strong>${statusPrefix}</strong><br/><strong>Correct Option:</strong> ${item.opts[item.ans]}<br/><strong>NCERT Reference:</strong> ${item.exp}`;
+      box.classList.add('show');
+      const nextBtn = document.getElementById('nextQBtn');
+      nextBtn.style.display = 'block';
+      nextBtn.textContent = qIndex + 1 < quizQueue.length ? 'Next Question →' : '🏁 Finish & View Score';
+    }
+
+    function nextQuestion() {
+      if (qIndex + 1 < quizQueue.length) { qIndex++; renderQuestion(); }
+      else { alert(`🎉 Quiz Completed!\nYour Current NEET Score: ${state.score}`); switchTab('chapters'); }
+    }
+    function exitQuiz() { clearInterval(timerInterval); switchTab('chapters'); }
+
+    // ================== MISTAKES & ADMIN SETTINGS ==================
+    function logMistake(item) {
+      if (!state.mistakes.some(m => m.q === item.q)) {
+        state.mistakes.unshift(item);
+        if (state.mistakes.length > 100) state.mistakes.pop();
+      }
+    }
+      function renderMistakes() {
+      const box = document.getElementById('mistakesList');
+      if (!state.mistakes.length) {
+        box.innerHTML = `<div class="q-card" style="text-align:center; color:var(--muted);">No mistakes saved yet! Keep practicing NCERT chapters.</div>`;
+        return;
+      }
+      box.innerHTML = state.mistakes.map(m => `
+        <div class="q-card" style="margin-bottom:10px;">
+          <div style="font-size:13.5px; font-weight:700; margin-bottom:6px;">${m.q}</div>
+          <div style="font-size:12px; color:#10b981; font-weight:700;">✔ Correct: ${m.opts[m.ans]}</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${m.exp}</div>
+        </div>
+      `).join('');
+    }
+    function clearMistakes() { state.mistakes = []; saveState(); renderMistakes(); }
+
+    function sendPaymentProofWhatsApp() {
+      const phone = (document.getElementById('studentPhoneInput').value || '').trim();
+      const msg = encodeURIComponent(`Hello NBS Biology Mentor! I have paid ₹499 on 9555829847@ibl for the 10-Month NEET Pro Plan.\nMy Mobile Number for OTP Login: ${phone || '[Enter Number]'}`);
+      window.open(`https://wa.me/${state.ownerPhone}?text=${msg}`, '_blank');
+    }
+
+    let tapCount = 0, tapTimer = null;
+    document.getElementById('brandTapArea').addEventListener('click', () => {
+      tapCount++;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
+      if (tapCount >= 5) {
+        tapCount = 0;
+        if (prompt('Enter NBS Owner Admin PIN:') === '2026') {
+          document.getElementById('adminUpiInput').value = state.upiId;
+          document.getElementById('adminFirebaseJson').value = state.firebaseConfig ? JSON.stringify(state.firebaseConfig) : '';
+          document.getElementById('adminModal').classList.add('open');
+        }
+      }
+    });
+    function closeAdmin() { document.getElementById('adminModal').classList.remove('open'); }
+
+    function handleQrUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { state.qrCustom = reader.result; saveState(); alert('✅ QR Barcode uploaded!'); };
+      reader.readAsDataURL(file);
+    }
+
+    function saveAdminSettings() {
+      state.upiId = document.getElementById('adminUpiInput').value.trim() || state.upiId;
+      const fbRaw = document.getElementById('adminFirebaseJson').value.trim();
+      if (fbRaw) {
+        try {
+          state.firebaseConfig = JSON.parse(fbRaw);
+        } catch (e) {
+          alert('Invalid Firebase JSON format.');
+          return;
+        }
+      }
+      saveState();
+      initFirebase();
+      alert('✅ Settings saved!');
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+    }
+
+    const manifestObj = {
+      name: "NBS Biology Mentor",
+      short_name: "NBS Bio",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#070d19",
+      theme_color: "#10b981",
+      icons: [{
+        src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2310b981'/><text x='50' y='62' font-size='36' font-weight='bold' text-anchor='middle' fill='white'>NBS</text></svg>",
+        sizes: "512x512",
+        type: "image/svg+xml"
+      }]
+    };
+    document.getElementById('pwa-manifest').setAttribute('href', 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj)));
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('installAppBtn').style.display = 'flex'; });
+    function triggerInstall() { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; } }
+
+    initFirebase();
+    updateDashboard();
+    renderChapters();
+  </script>
+</body>
+</html>
+    
+    
